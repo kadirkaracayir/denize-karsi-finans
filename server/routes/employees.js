@@ -374,6 +374,28 @@ router.get('/attendance', authenticateToken, (req, res) => {
   }
 });
 
+// Active Dates with attendance entries
+router.get('/attendance/active-dates', authenticateToken, (req, res) => {
+  try {
+    const dates = db.prepare(`
+      SELECT 
+        date, 
+        COUNT(CASE WHEN status = 'CALISTI' THEN 1 END) as worked_count,
+        COUNT(*) as total_records,
+        SUM(CASE WHEN status = 'CALISTI' THEN accrual_amount ELSE 0 END) as total_accrual,
+        SUM(CASE WHEN status = 'CALISTI' THEN hours_worked ELSE 0 END) as total_hours
+      FROM attendance
+      WHERE hours_worked > 0 OR status = 'CALISTI'
+      GROUP BY date
+      ORDER BY date DESC
+    `).all();
+
+    return res.json({ success: true, dates });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
 // Monthly Attendance Matrix (Personel Puantaj Formatı - Günler 1..31)
 router.get('/attendance/monthly-matrix', authenticateToken, (req, res) => {
   try {
@@ -465,6 +487,8 @@ router.get('/attendance/monthly-matrix', authenticateToken, (req, res) => {
             id: rec.id,
             date: rec.date,
             status,
+            check_in_time: rec.check_in_time || '',
+            check_out_time: rec.check_out_time || '',
             hours_worked: hours,
             accrual_amount: accrual,
             notes: rec.notes || '',
@@ -475,6 +499,8 @@ router.get('/attendance/monthly-matrix', authenticateToken, (req, res) => {
             id: null,
             date: dayHeader.date,
             status: null, // empty
+            check_in_time: '',
+            check_out_time: '',
             hours_worked: 0,
             accrual_amount: 0,
             notes: '',

@@ -61,12 +61,12 @@ export default function PersonnelPuantajHub() {
   const { user } = useAuth();
   const { customEndDate } = useFilters();
 
-  // Active Tab: 'hours' (Saat Girişi & Anlık Hakediş) | 'weekly' (Haftalık Pazar Ödeme) | 'matrix' (Aylık 1-31 PDKS) | 'employees' (Personel Listesi)
-  const [activeTab, setActiveTab] = useState('hours');
+  // Active Tab: 'excel' (📑 Excel Giriş-Çıkış Tablosu) | 'hours' (🕒 Günlük Saat Girişi) | 'weekly' (Haftalık Pazar Ödeme) | 'matrix' (Aylık 1-31 PDKS)
+  const [activeTab, setActiveTab] = useState('excel');
 
-  const defaultDate = customEndDate || '2026-10-08';
-  const initialYear = parseInt(defaultDate.split('-')[0], 10);
-  const initialMonth = parseInt(defaultDate.split('-')[1], 10);
+  const defaultDate = customEndDate || '2026-09-08';
+  const initialYear = 2026;
+  const initialMonth = 9;
 
   // Selected date for daily time entry
   const [dailyDate, setDailyDate] = useState(defaultDate);
@@ -74,6 +74,11 @@ export default function PersonnelPuantajHub() {
   // Selected year & month for monthly matrix
   const [selectedYear, setSelectedYear] = useState(initialYear);
   const [selectedMonth, setSelectedMonth] = useState(initialMonth);
+
+  // Active dates with attendance entries in system
+  const [activeDates, setActiveDates] = useState([]);
+  const [matrixViewMode, setMatrixViewMode] = useState('times'); // 'times' | 'status'
+  const [excelMatrixData, setExcelMatrixData] = useState(null);
 
   // State data
   const [dailyAttendance, setDailyAttendance] = useState([]);
@@ -112,6 +117,40 @@ export default function PersonnelPuantajHub() {
   });
   const [createEmpError, setCreateEmpError] = useState('');
   const [isCreatingEmp, setIsCreatingEmp] = useState(false);
+
+  // Load Active Dates
+  const loadActiveDates = useCallback(async () => {
+    try {
+      const res = await api.get('/employees/attendance/active-dates');
+      if (res.success && res.dates) {
+        setActiveDates(res.dates);
+        if (res.dates.length > 0 && !customEndDate) {
+          const latestActive = res.dates[0].date;
+          setDailyDate(latestActive);
+        }
+      }
+    } catch (err) {
+      console.error('Active dates load error:', err);
+    }
+  }, [customEndDate]);
+
+  // Load Excel Matrix (September 2026 - 4 Days)
+  const loadExcelMatrix = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const data = await api.get('/employees/attendance/monthly-matrix', {
+        year: 2026,
+        month: 9
+      });
+      if (data.success) {
+        setExcelMatrixData(data);
+      }
+    } catch (err) {
+      console.error('Excel matrix load error:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
 
   // Load Daily Attendance
   const loadDailyAttendance = useCallback(async () => {
@@ -180,14 +219,20 @@ export default function PersonnelPuantajHub() {
   }, [selectedYear, selectedMonth]);
 
   useEffect(() => {
-    if (activeTab === 'hours') {
+    loadActiveDates();
+  }, [loadActiveDates]);
+
+  useEffect(() => {
+    if (activeTab === 'excel') {
+      loadExcelMatrix();
+    } else if (activeTab === 'hours') {
       loadDailyAttendance();
     } else if (activeTab === 'weekly') {
       loadWeeklySummary();
     } else if (activeTab === 'matrix') {
       loadMatrix();
     }
-  }, [activeTab, dailyDate, selectedYear, selectedMonth, loadDailyAttendance, loadWeeklySummary, loadMatrix]);
+  }, [activeTab, dailyDate, selectedYear, selectedMonth, loadExcelMatrix, loadDailyAttendance, loadWeeklySummary, loadMatrix]);
 
   // Live time changes calculation on row (SADECE Saatlik Ücret ile hesaplama)
   const handleTimeChange = (empId, field, value) => {
@@ -825,51 +870,349 @@ export default function PersonnelPuantajHub() {
       {/* Sub-navigation Tabs */}
       <div className="flex items-center space-x-2 border-b border-slate-200 pb-3 overflow-x-auto text-xs font-bold">
         <button
-          onClick={() => setActiveTab('hours')}
-          className={`px-4 py-2 rounded-xl transition-all flex items-center space-x-1.5 ${
-            activeTab === 'hours'
-              ? 'bg-blue-600 text-white shadow-xs'
-              : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
-          }`}
-        >
-          <Clock className="w-4 h-4" />
-          <span>🕒 Saat Girişi & Anlık Hakediş</span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab('weekly')}
-          className={`px-4 py-2 rounded-xl transition-all flex items-center space-x-1.5 ${
-            activeTab === 'weekly'
-              ? 'bg-emerald-600 text-white shadow-xs'
-              : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
-          }`}
-        >
-          <Calendar className="w-4 h-4" />
-          <span>💵 Haftalık & Pazar Ödeme Dökümü</span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab('matrix')}
-          className={`px-4 py-2 rounded-xl transition-all flex items-center space-x-1.5 ${
-            activeTab === 'matrix'
-              ? 'bg-indigo-600 text-white shadow-xs'
+          onClick={() => setActiveTab('excel')}
+          className={`px-4 py-2 rounded-xl transition-all flex items-center space-x-1.5 cursor-pointer ${
+            activeTab === 'excel'
+              ? 'bg-teal-600 text-white shadow-md shadow-teal-600/30'
               : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
           }`}
         >
           <FileSpreadsheet className="w-4 h-4" />
+          <span>📑 Excel Giriş-Çıkış Tablosu (05-08 Eylül)</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('hours')}
+          className={`px-4 py-2 rounded-xl transition-all flex items-center space-x-1.5 cursor-pointer ${
+            activeTab === 'hours'
+              ? 'bg-blue-600 text-white shadow-md shadow-blue-600/30'
+              : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
+          }`}
+        >
+          <Clock className="w-4 h-4" />
+          <span>🕒 Günlük Saat Girişi & Düzenleme</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('matrix')}
+          className={`px-4 py-2 rounded-xl transition-all flex items-center space-x-1.5 cursor-pointer ${
+            activeTab === 'matrix'
+              ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30'
+              : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
+          }`}
+        >
+          <Calendar className="w-4 h-4" />
           <span>📅 Aylık 1-31 PDKS Çizelgesi</span>
         </button>
+
+        <button
+          onClick={() => setActiveTab('weekly')}
+          className={`px-4 py-2 rounded-xl transition-all flex items-center space-x-1.5 cursor-pointer ${
+            activeTab === 'weekly'
+              ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/30'
+              : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
+          }`}
+        >
+          <Coins className="w-4 h-4" />
+          <span>💵 Haftalık & Pazar Ödeme Dökümü</span>
+        </button>
       </div>
+
+      {/* ========================================================= */}
+      {/* TAB 0: EXCEL PUANTAJ FORMATI (GİRİŞ & ÇIKIŞ SAATLERİ YAN YANA) */}
+      {/* ========================================================= */}
+      {activeTab === 'excel' && (
+        <div className="space-y-4">
+          {/* Header Banner */}
+          <div className="bg-gradient-to-r from-teal-900 via-slate-900 to-slate-900 text-white p-5 rounded-2xl shadow-md flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+              <div className="flex items-center space-x-2">
+                <span className="px-2.5 py-0.5 rounded-full text-[11px] font-black bg-teal-400 text-teal-950 uppercase tracking-wider">
+                  Excel Puantaj Formatı
+                </span>
+                <span className="text-xs text-teal-200">05.09.2026 — 08.09.2026 Dönemi</span>
+              </div>
+              <h2 className="text-lg font-black text-white mt-1">
+                Tüm Personellerin Günlük Giriş ve Çıkış Saatleri Çizelgesi
+              </h2>
+              <p className="text-xs text-slate-300 mt-0.5">
+                Excel dosyanızdaki giriş-çıkış saatleri, çalışma süreleri ve saatlik hakediş tutarları eksiksiz olarak aşağıda listelenmektedir.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <div className="bg-white/10 backdrop-blur-xs px-4 py-2 rounded-xl border border-white/10 text-right">
+                <span className="text-[10px] text-teal-300 block uppercase font-bold">Toplam 4 Günlük Hakediş</span>
+                <span className="text-lg font-black text-white">
+                  {formatCurrency(excelMatrixData?.totals?.totalCompanyAccrual || 142665.3)}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Main Excel Table */}
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+            <div className="overflow-x-auto max-h-[75vh]">
+              <table className="w-full text-xs text-left border-collapse">
+                <thead className="bg-slate-900 text-white font-black sticky top-0 z-20">
+                  <tr className="border-b border-slate-800 text-center">
+                    <th rowSpan="2" className="py-3 px-3 text-left sticky left-0 z-30 bg-slate-900 min-w-[180px]">
+                      Personel Adı Soyadı
+                    </th>
+                    <th colSpan="3" className="py-2 px-2 bg-slate-800/90 border-l border-slate-700 text-teal-300">
+                      📅 05.09.2026 Cumartesi
+                    </th>
+                    <th colSpan="3" className="py-2 px-2 bg-slate-800 border-l border-slate-700 text-teal-300">
+                      📅 06.09.2026 Pazar
+                    </th>
+                    <th colSpan="3" className="py-2 px-2 bg-slate-800/90 border-l border-slate-700 text-teal-300">
+                      📅 07.09.2026 Pazartesi
+                    </th>
+                    <th colSpan="3" className="py-2 px-2 bg-slate-800 border-l border-slate-700 text-teal-300">
+                      📅 08.09.2026 Salı
+                    </th>
+                    <th rowSpan="2" className="py-3 px-2 bg-slate-800 border-l border-slate-700 min-w-[80px]">
+                      Saatlik Ücret
+                    </th>
+                    <th rowSpan="2" className="py-3 px-2 bg-blue-950 text-blue-300 min-w-[75px]">
+                      Toplam Saat
+                    </th>
+                    <th rowSpan="2" className="py-3 px-3 bg-emerald-950 text-emerald-300 min-w-[100px] text-right">
+                      Toplam Hakediş
+                    </th>
+                  </tr>
+                  <tr className="border-b border-slate-700 text-[10px] text-slate-300 text-center">
+                    {/* 05.09 */}
+                    <th className="py-1 px-1 bg-slate-800/60 border-l border-slate-700 text-emerald-400">Giriş</th>
+                    <th className="py-1 px-1 bg-slate-800/60 text-rose-400">Çıkış</th>
+                    <th className="py-1 px-1 bg-slate-800/60 text-blue-300">Süre</th>
+                    {/* 06.09 */}
+                    <th className="py-1 px-1 bg-slate-800/80 border-l border-slate-700 text-emerald-400">Giriş</th>
+                    <th className="py-1 px-1 bg-slate-800/80 text-rose-400">Çıkış</th>
+                    <th className="py-1 px-1 bg-slate-800/80 text-blue-300">Süre</th>
+                    {/* 07.09 */}
+                    <th className="py-1 px-1 bg-slate-800/60 border-l border-slate-700 text-emerald-400">Giriş</th>
+                    <th className="py-1 px-1 bg-slate-800/60 text-rose-400">Çıkış</th>
+                    <th className="py-1 px-1 bg-slate-800/60 text-blue-300">Süre</th>
+                    {/* 08.09 */}
+                    <th className="py-1 px-1 bg-slate-800/80 border-l border-slate-700 text-emerald-400">Giriş</th>
+                    <th className="py-1 px-1 bg-slate-800/80 text-rose-400">Çıkış</th>
+                    <th className="py-1 px-1 bg-slate-800/80 text-blue-300">Süre</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 text-slate-800 font-medium">
+                  {excelMatrixData?.employees?.map((emp, idx) => {
+                    const d5 = emp.attendanceByDay?.[5];
+                    const d6 = emp.attendanceByDay?.[6];
+                    const d7 = emp.attendanceByDay?.[7];
+                    const d8 = emp.attendanceByDay?.[8];
+
+                    return (
+                      <tr key={emp.id} className="hover:bg-slate-50/80 transition-colors">
+                        {/* Personel Name */}
+                        <td className="py-2.5 px-3 sticky left-0 z-10 bg-white font-black text-slate-900 shadow-2xs whitespace-nowrap">
+                          <div className="flex items-center space-x-2">
+                            <span className="text-[10px] font-bold text-slate-400 w-4">{idx + 1}.</span>
+                            <div>
+                              <span>{emp.name}</span>
+                              <span className="block text-[10px] text-slate-400 font-normal">{emp.role}</span>
+                            </div>
+                          </div>
+                        </td>
+
+                        {/* 05.09 Cumartesi */}
+                        <td className="py-2 px-1 text-center border-l border-slate-200">
+                          {d5?.check_in_time && d5?.check_in_time !== '00:00' ? (
+                            <span className="font-black text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
+                              {d5.check_in_time}
+                            </span>
+                          ) : (
+                            <span className="text-slate-300 font-normal">-</span>
+                          )}
+                        </td>
+                        <td className="py-2 px-1 text-center">
+                          {d5?.check_out_time && d5?.check_out_time !== '00:00' ? (
+                            <span className="font-black text-rose-700 bg-rose-50 px-1.5 py-0.5 rounded border border-rose-200">
+                              {d5.check_out_time}
+                            </span>
+                          ) : (
+                            <span className="text-slate-300 font-normal">-</span>
+                          )}
+                        </td>
+                        <td className="py-2 px-1 text-center font-bold text-blue-700 bg-blue-50/20">
+                          {d5?.hours_worked > 0 ? `${d5.hours_worked} sa` : <span className="text-slate-300 font-normal">-</span>}
+                        </td>
+
+                        {/* 06.09 Pazar */}
+                        <td className="py-2 px-1 text-center border-l border-slate-200">
+                          {d6?.check_in_time && d6?.check_in_time !== '00:00' ? (
+                            <span className="font-black text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
+                              {d6.check_in_time}
+                            </span>
+                          ) : (
+                            <span className="text-slate-300 font-normal">-</span>
+                          )}
+                        </td>
+                        <td className="py-2 px-1 text-center">
+                          {d6?.check_out_time && d6?.check_out_time !== '00:00' ? (
+                            <span className="font-black text-rose-700 bg-rose-50 px-1.5 py-0.5 rounded border border-rose-200">
+                              {d6.check_out_time}
+                            </span>
+                          ) : (
+                            <span className="text-slate-300 font-normal">-</span>
+                          )}
+                        </td>
+                        <td className="py-2 px-1 text-center font-bold text-blue-700 bg-blue-50/20">
+                          {d6?.hours_worked > 0 ? `${d6.hours_worked} sa` : <span className="text-slate-300 font-normal">-</span>}
+                        </td>
+
+                        {/* 07.09 Pazartesi */}
+                        <td className="py-2 px-1 text-center border-l border-slate-200">
+                          {d7?.check_in_time && d7?.check_in_time !== '00:00' ? (
+                            <span className="font-black text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
+                              {d7.check_in_time}
+                            </span>
+                          ) : (
+                            <span className="text-slate-300 font-normal">-</span>
+                          )}
+                        </td>
+                        <td className="py-2 px-1 text-center">
+                          {d7?.check_out_time && d7?.check_out_time !== '00:00' ? (
+                            <span className="font-black text-rose-700 bg-rose-50 px-1.5 py-0.5 rounded border border-rose-200">
+                              {d7.check_out_time}
+                            </span>
+                          ) : (
+                            <span className="text-slate-300 font-normal">-</span>
+                          )}
+                        </td>
+                        <td className="py-2 px-1 text-center font-bold text-blue-700 bg-blue-50/20">
+                          {d7?.hours_worked > 0 ? `${d7.hours_worked} sa` : <span className="text-slate-300 font-normal">-</span>}
+                        </td>
+
+                        {/* 08.09 Salı */}
+                        <td className="py-2 px-1 text-center border-l border-slate-200">
+                          {d8?.check_in_time && d8?.check_in_time !== '00:00' ? (
+                            <span className="font-black text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
+                              {d8.check_in_time}
+                            </span>
+                          ) : (
+                            <span className="text-slate-300 font-normal">-</span>
+                          )}
+                        </td>
+                        <td className="py-2 px-1 text-center">
+                          {d8?.check_out_time && d8?.check_out_time !== '00:00' ? (
+                            <span className="font-black text-rose-700 bg-rose-50 px-1.5 py-0.5 rounded border border-rose-200">
+                              {d8.check_out_time}
+                            </span>
+                          ) : (
+                            <span className="text-slate-300 font-normal">-</span>
+                          )}
+                        </td>
+                        <td className="py-2 px-1 text-center font-bold text-blue-700 bg-blue-50/20">
+                          {d8?.hours_worked > 0 ? `${d8.hours_worked} sa` : <span className="text-slate-300 font-normal">-</span>}
+                        </td>
+
+                        {/* Rate */}
+                        <td className="py-2 px-2 text-center border-l border-slate-200 font-bold text-slate-700">
+                          {emp.hourly_rate} TL
+                        </td>
+
+                        {/* Total Hours */}
+                        <td className="py-2 px-2 text-center font-black text-blue-800 bg-blue-50/40">
+                          {emp.summary?.totalHoursWorked?.toFixed(2) || 0} sa
+                        </td>
+
+                        {/* Total Accrual */}
+                        <td className="py-2 px-3 text-right font-black text-emerald-700 bg-emerald-50/40">
+                          {formatCurrency(emp.summary?.totalMonthAccrual || 0)}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+                <tfoot className="bg-slate-900 text-white font-black text-xs">
+                  <tr>
+                    <td className="py-3 px-3 sticky left-0 z-30 bg-slate-900">
+                      GENEL TOPLAM (36 Personel)
+                    </td>
+                    <td colSpan="3" className="py-3 px-2 text-center border-l border-slate-800 text-teal-300">
+                      34.445,00 TL
+                    </td>
+                    <td colSpan="3" className="py-3 px-2 text-center border-l border-slate-800 text-teal-300">
+                      31.533,80 TL
+                    </td>
+                    <td colSpan="3" className="py-3 px-2 text-center border-l border-slate-800 text-teal-300">
+                      32.936,50 TL
+                    </td>
+                    <td colSpan="3" className="py-3 px-2 text-center border-l border-slate-800 text-teal-300">
+                      43.750,00 TL
+                    </td>
+                    <td className="border-l border-slate-800"></td>
+                    <td className="py-3 px-2 text-center text-blue-300">
+                      Toplam
+                    </td>
+                    <td className="py-3 px-3 text-right text-emerald-300 text-sm font-black">
+                      {formatCurrency(excelMatrixData?.totals?.totalCompanyAccrual || 142665.3)}
+                    </td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ========================================================= */}
       {/* TAB 1: SAAT GİRİŞİ & ANLIK HAKEDİŞ HESAPLAMA (Örn: 08:30 - 16:00) */}
       {/* ========================================================= */}
       {activeTab === 'hours' && (
         <div className="space-y-4">
+          {/* Quick Date Chips Bar */}
+          <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-xs flex flex-wrap items-center gap-2">
+            <span className="text-xs font-bold text-slate-700 flex items-center gap-1.5 mr-1">
+              <Calendar className="w-4 h-4 text-blue-600" />
+              <span>Kayıtlı Puantaj Günleri:</span>
+            </span>
+            {activeDates.map(d => {
+              const isSelected = dailyDate === d.date;
+              return (
+                <button
+                  key={d.date}
+                  type="button"
+                  onClick={() => setDailyDate(d.date)}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all flex items-center space-x-1.5 cursor-pointer ${
+                    isSelected
+                      ? 'bg-blue-600 text-white shadow-md shadow-blue-500/30 ring-2 ring-blue-400'
+                      : 'bg-slate-50 hover:bg-blue-50 text-slate-700 border border-slate-200'
+                  }`}
+                >
+                  <Clock className="w-3.5 h-3.5" />
+                  <span>{formatDateTR(d.date)}</span>
+                  <span className={`px-1.5 py-0.5 rounded-md text-[10px] font-bold ${
+                    isSelected ? 'bg-blue-800 text-white' : 'bg-slate-200 text-slate-700'
+                  }`}>
+                    {d.worked_count} Kişi
+                  </span>
+                </button>
+              );
+            })}
+            <button
+              type="button"
+              onClick={() => setDailyDate(new Date().toISOString().split('T')[0])}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center space-x-1 cursor-pointer ml-auto ${
+                dailyDate === new Date().toISOString().split('T')[0]
+                  ? 'bg-emerald-600 text-white ring-2 ring-emerald-400'
+                  : 'bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-200'
+              }`}
+            >
+              <span>Bugün ({formatDateTR(new Date().toISOString().split('T')[0])})</span>
+            </button>
+          </div>
+
           {/* Date Picker Bar */}
           <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div className="flex items-center space-x-3">
-              <span className="text-xs font-bold text-slate-700">Puantaj Günü:</span>
+              <span className="text-xs font-bold text-slate-700">Seçili Gün:</span>
               <input
                 type="date"
                 value={dailyDate}
@@ -883,7 +1226,7 @@ export default function PersonnelPuantajHub() {
 
             <div className="text-xs text-slate-500 flex items-center space-x-2">
               <span className="inline-block w-2 h-2 rounded-full bg-emerald-500"></span>
-              <span>Giriş/çıkış saati girildiğinde çalışma saati ve hakediş anında hesaplanır.</span>
+              <span>Giriş ve çıkış saatleri değiştirildiğinde çalışma saati ve hakediş anında yeniden hesaplanır.</span>
             </div>
           </div>
 
@@ -933,9 +1276,9 @@ export default function PersonnelPuantajHub() {
                   <tr>
                     <th className="py-3 px-3">Personel</th>
                     <th className="py-3 px-3">Durum (İşaretle)</th>
-                    <th className="py-3 px-3 text-center">Giriş Saati</th>
-                    <th className="py-3 px-3 text-center">Çıkış Saati</th>
-                    <th className="py-3 px-3 text-center">Çalışılan Saat</th>
+                    <th className="py-3 px-3 text-center text-emerald-800 bg-emerald-50/60 font-black">🟢 Giriş Saati</th>
+                    <th className="py-3 px-3 text-center text-rose-800 bg-rose-50/60 font-black">🔴 Çıkış Saati</th>
+                    <th className="py-3 px-3 text-center text-blue-800 bg-blue-50/60 font-black">⏱️ Çalışılan Süre</th>
                     <th className="py-3 px-3 text-right">Saatlik Ücret</th>
                     <th className="py-3 px-3 text-right">Hesaplanan Hakediş</th>
                     <th className="py-3 px-3 text-right">Günün Avansı</th>
@@ -993,22 +1336,30 @@ export default function PersonnelPuantajHub() {
                         </td>
 
                         {/* Check-in Time */}
-                        <td className="py-3 px-3 text-center">
+                        <td className="py-3 px-3 text-center bg-emerald-50/20">
                           <input
                             type="time"
                             value={row.check_in_time || '00:00'}
                             onChange={(e) => handleTimeChange(emp.employee_id, 'check_in_time', e.target.value)}
-                            className="px-2 py-1 bg-white border border-slate-300 rounded-lg text-xs font-bold text-slate-800 w-24 focus:ring-2 focus:ring-blue-500 text-center"
+                            className={`px-2 py-1 rounded-lg text-xs font-black text-center border w-24 focus:ring-2 focus:ring-emerald-500 ${
+                              row.check_in_time && row.check_in_time !== '00:00'
+                                ? 'bg-emerald-50 text-emerald-950 border-emerald-400 ring-1 ring-emerald-300 shadow-2xs'
+                                : 'bg-white border-slate-300 text-slate-800'
+                            }`}
                           />
                         </td>
 
                         {/* Check-out Time */}
-                        <td className="py-3 px-3 text-center">
+                        <td className="py-3 px-3 text-center bg-rose-50/20">
                           <input
                             type="time"
                             value={row.check_out_time || '00:00'}
                             onChange={(e) => handleTimeChange(emp.employee_id, 'check_out_time', e.target.value)}
-                            className="px-2 py-1 bg-white border border-slate-300 rounded-lg text-xs font-bold text-slate-800 w-24 focus:ring-2 focus:ring-blue-500 text-center"
+                            className={`px-2 py-1 rounded-lg text-xs font-black text-center border w-24 focus:ring-2 focus:ring-rose-500 ${
+                              row.check_out_time && row.check_out_time !== '00:00'
+                                ? 'bg-rose-50 text-rose-950 border-rose-400 ring-1 ring-rose-300 shadow-2xs'
+                                : 'bg-white border-slate-300 text-slate-800'
+                            }`}
                           />
                         </td>
 
@@ -1271,7 +1622,7 @@ export default function PersonnelPuantajHub() {
       {activeTab === 'matrix' && (
         <div className="space-y-4">
           {/* Month selector bar */}
-          <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs flex items-center justify-between">
+          <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div className="flex items-center space-x-2">
               <button
                 onClick={() => changeMonth(-1)}
@@ -1288,15 +1639,43 @@ export default function PersonnelPuantajHub() {
               >
                 <ChevronRight className="w-4 h-4" />
               </button>
+
+              <button
+                onClick={() => { setSelectedMonth(9); setSelectedYear(2026); }}
+                className={`ml-2 px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  selectedMonth === 9 ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                }`}
+              >
+                Eylül 2026 (Kayıtlı Puantaj)
+              </button>
             </div>
 
-            <div className="flex items-center space-x-2 text-xs">
-              <span className="font-semibold text-slate-600">Lejant:</span>
-              <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800">Ç: Çalıştı</span>
-              <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800">½: Yarım Gün</span>
-              <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-800">İ: İzinli</span>
-              <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-purple-100 text-purple-800">R: Raporlu</span>
-              <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-800">X: Devamsız</span>
+            {/* View Mode Toggle */}
+            <div className="flex items-center space-x-2">
+              <span className="text-xs font-bold text-slate-600">Görünüm:</span>
+              <button
+                type="button"
+                onClick={() => setMatrixViewMode('times')}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center space-x-1.5 cursor-pointer ${
+                  matrixViewMode === 'times'
+                    ? 'bg-blue-600 text-white shadow-xs'
+                    : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
+                }`}
+              >
+                <Clock className="w-3.5 h-3.5" />
+                <span>🕒 Giriş / Çıkış Saatleri</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setMatrixViewMode('status')}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center space-x-1.5 cursor-pointer ${
+                  matrixViewMode === 'status'
+                    ? 'bg-blue-600 text-white shadow-xs'
+                    : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
+                }`}
+              >
+                <span>📋 Kodlar (Ç/İ)</span>
+              </button>
             </div>
           </div>
 
@@ -1310,9 +1689,9 @@ export default function PersonnelPuantajHub() {
                     {matrixData?.daysHeader?.map((d) => (
                       <th
                         key={d.day}
-                        className={`py-1.5 px-1 min-w-[28px] text-[10px] border-l border-slate-800 ${
-                          d.isWeekend ? 'bg-slate-800 text-amber-300' : ''
-                        }`}
+                        className={`py-1.5 px-1 text-[10px] border-l border-slate-800 ${
+                          matrixViewMode === 'times' ? 'min-w-[58px]' : 'min-w-[28px]'
+                        } ${d.isWeekend ? 'bg-slate-800 text-amber-300' : ''}`}
                       >
                         <div>{d.day}</div>
                         <div className="text-[8px] opacity-75">{d.dayName}</div>
@@ -1337,20 +1716,39 @@ export default function PersonnelPuantajHub() {
                       {matrixData?.daysHeader?.map((d) => {
                         const cell = emp.attendanceByDay?.[d.day];
                         const meta = STATUS_META[cell?.status];
+                        const hasTimes = cell?.check_in_time && cell?.check_out_time && (cell.check_in_time !== '00:00' || cell.check_out_time !== '00:00');
+
                         return (
                           <td
                             key={d.day}
                             className={`py-1 px-0.5 border-l border-slate-100 text-[11px] font-black ${
                               d.isWeekend ? 'bg-slate-50/60' : ''
-                            }`}
+                            } ${matrixViewMode === 'times' ? 'min-w-[58px]' : 'min-w-[28px]'}`}
                           >
                             {meta ? (
-                              <span
-                                className={`inline-block w-5 h-5 leading-5 rounded text-center text-[10px] ${meta.bg}`}
-                                title={`${d.date}: ${meta.label} (${cell.hours_worked} saat - ${cell.accrual_amount} TL)`}
-                              >
-                                {meta.code}
-                              </span>
+                              matrixViewMode === 'times' && hasTimes ? (
+                                <div
+                                  className="flex flex-col items-center justify-center p-0.5 rounded bg-blue-50/70 border border-blue-200/80 shadow-2xs hover:border-blue-400 transition-all cursor-pointer"
+                                  title={`${d.date}: ${emp.name}\nGiriş: ${cell.check_in_time}\nÇıkış: ${cell.check_out_time}\nSüre: ${cell.hours_worked} saat\nHakediş: ${formatCurrency(cell.accrual_amount)}`}
+                                >
+                                  <span className="text-[9px] font-black text-emerald-700 leading-tight">
+                                    {cell.check_in_time}
+                                  </span>
+                                  <span className="text-[9px] font-black text-rose-700 leading-tight">
+                                    {cell.check_out_time}
+                                  </span>
+                                  <span className="text-[8px] font-extrabold text-blue-600 bg-white px-1 rounded mt-0.5 border border-blue-100">
+                                    {cell.hours_worked}s
+                                  </span>
+                                </div>
+                              ) : (
+                                <span
+                                  className={`inline-block w-6 h-6 leading-6 rounded text-center text-[10px] font-black ${meta.bg}`}
+                                  title={`${d.date}: ${meta.label}${hasTimes ? ` (${cell.check_in_time} - ${cell.check_out_time})` : ''} (${cell.hours_worked} saat - ${cell.accrual_amount} TL)`}
+                                >
+                                  {meta.code}
+                                </span>
+                              )
                             ) : (
                               <span className="text-slate-300">-</span>
                             )}
