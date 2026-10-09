@@ -64,6 +64,9 @@ router.post(
         return res.status(400).json({ success: false, message: 'İşletme ve tarih alanları zorunludur.' });
       }
 
+      const parsedRate = parseFloat(commission_rate) || 0;
+      const parsedDiff = parseFloat(rate_difference) || 0;
+
       const existing = db.prepare('SELECT * FROM daily_card_settlements WHERE business_id = ? AND date = ?').get(business_id, date);
 
       const stmt = db.prepare(`
@@ -78,7 +81,23 @@ router.post(
           updated_at = CURRENT_TIMESTAMP
       `);
 
-      stmt.run(business_id, date, parseFloat(commission_rate) || 0, parseFloat(rate_difference) || 0, notes, req.user.id);
+      stmt.run(business_id, date, parsedRate, parsedDiff, notes, req.user.id);
+
+      // Persist to system_settings so this rate permanently stays fixed across all dates and operations
+      const upsertSetting = db.prepare(`
+        INSERT INTO system_settings (key, value, description, updated_at)
+        VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+        ON CONFLICT(key) DO UPDATE SET
+          value = excluded.value,
+          updated_at = CURRENT_TIMESTAMP
+      `);
+
+      if (business_id === 'DK') {
+        upsertSetting.run('dk_card_commission_rate', String(parsedRate), 'DK POS Komisyon Oranı (%)');
+      } else if (business_id === 'PALM') {
+        upsertSetting.run('palm_card_commission_rate', String(parsedRate), 'Palm POS Komisyon Oranı (%)');
+      }
+      upsertSetting.run('card_commission_rate', String(parsedRate), 'Genel Kredi Kartı Komisyon Oranı (%)');
 
       logAudit({
         userId: req.user.id,
@@ -87,7 +106,7 @@ router.post(
         entityType: 'POS_SETTLEMENT',
         entityId: `${business_id}_${date}`,
         oldValues: existing,
-        newValues: { business_id, date, commission_rate, rate_difference, notes },
+        newValues: { business_id, date, commission_rate: parsedRate, rate_difference: parsedDiff, notes },
         changeReason: req.changeReason,
         ipAddress: req.ip
       });
@@ -97,7 +116,7 @@ router.post(
 
       return res.json({
         success: true,
-        message: `${business_id} kredi kartı komisyon oranı (%${commission_rate}) ve oran farkı (${rate_difference} TL) başarıyla kaydedildi.`,
+        message: `${business_id} kredi kartı komisyon oranı (%${parsedRate}) ve ayarları kalıcı olarak kaydedildi.`,
         settlement: summary.finansOzeti
       });
     } catch (err) {

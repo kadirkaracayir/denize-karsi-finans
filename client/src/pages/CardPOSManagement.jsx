@@ -20,7 +20,14 @@ import ReasonModal from '../components/modals/ReasonModal';
 
 export default function CardPOSManagement() {
   const { customEndDate, refreshKey, triggerRefresh } = useFilters();
-  const [targetDate, setTargetDate] = useState(customEndDate || '2026-10-08');
+  const [targetDate, setTargetDate] = useState(() => {
+    if (customEndDate) return customEndDate;
+    try {
+      const saved = localStorage.getItem('dk_selected_date');
+      if (saved) return saved;
+    } catch {}
+    return new Date().toISOString().split('T')[0];
+  });
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -40,6 +47,12 @@ export default function CardPOSManagement() {
   const [pendingPayload, setPendingPayload] = useState(null);
 
   useEffect(() => {
+    if (customEndDate && customEndDate !== targetDate) {
+      setTargetDate(customEndDate);
+    }
+  }, [customEndDate]);
+
+  useEffect(() => {
     setLoading(true);
     setMsg({ text: '', type: '' });
     api.get('/cash/pos-settlement', { date: targetDate })
@@ -47,14 +60,14 @@ export default function CardPOSManagement() {
         if (res.success) {
           setData(res);
           const s = res.settlement;
-          if (s.dk) {
-            setDkRate(String(s.dk.komisyonOrani));
-            setDkRateDiff(String(s.dk.oranFarki));
+          if (s?.dk) {
+            setDkRate(String(s.dk.komisyonOrani ?? 2.5));
+            setDkRateDiff(String(s.dk.oranFarki ?? 0));
             setDkNotes(s.dk.notes || '');
           }
-          if (s.palm) {
-            setPalmRate(String(s.palm.komisyonOrani));
-            setPalmRateDiff(String(s.palm.oranFarki));
+          if (s?.palm) {
+            setPalmRate(String(s.palm.komisyonOrani ?? 2.5));
+            setPalmRateDiff(String(s.palm.oranFarki ?? 0));
             setPalmNotes(s.palm.notes || '');
           }
         }

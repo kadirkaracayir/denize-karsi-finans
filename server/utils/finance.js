@@ -188,26 +188,64 @@ export function getFinancialSummary(startDate, endDate) {
     SELECT * FROM daily_card_settlements WHERE business_id = 'PALM' AND date = ?
   `).get(endDate);
 
+  // Fallback to latest recorded settlement on or before endDate so rates stay fixed and persistent
+  const latestDkSettlement = dkSettlement || db.prepare(`
+    SELECT * FROM daily_card_settlements WHERE business_id = 'DK' AND date <= ? ORDER BY date DESC LIMIT 1
+  `).get(endDate);
+
+  const latestPalmSettlement = palmSettlement || db.prepare(`
+    SELECT * FROM daily_card_settlements WHERE business_id = 'PALM' AND date <= ? ORDER BY date DESC LIMIT 1
+  `).get(endDate);
+
   // Default rates from system_settings
+  let defaultGeneral = 2.5;
   let defaultDk = 2.5;
   let defaultPalm = 2.5;
   try {
     const getSetting = db.prepare('SELECT value FROM system_settings WHERE key = ?');
     const genVal = getSetting.get('card_commission_rate')?.value;
-    const dkVal = getSetting.get('dk_card_commission_rate')?.value || genVal;
-    const palmVal = getSetting.get('palm_card_commission_rate')?.value || genVal;
-    if (dkVal) defaultDk = parseFloat(dkVal) || 2.5;
-    if (palmVal) defaultPalm = parseFloat(palmVal) || 2.5;
-  } catch {}
+    if (genVal && !isNaN(parseFloat(genVal))) defaultGeneral = parseFloat(genVal);
 
-  const dkCommissionRate = dkSettlement ? dkSettlement.commission_rate : defaultDk;
-  const dkRateDiff = dkSettlement ? dkSettlement.rate_difference : 0; // manual +/- TL difference
+    const dkVal = getSetting.get('dk_card_commission_rate')?.value;
+    defaultDk = (dkVal && !isNaN(parseFloat(dkVal))) ? parseFloat(dkVal) : defaultGeneral;
+
+    const palmVal = getSetting.get('palm_card_commission_rate')?.value;
+    defaultPalm = (palmVal && !isNaN(parseFloat(palmVal))) ? parseFloat(palmVal) : defaultGeneral;
+  } catch (err) {
+    console.error('Error reading system_settings for card rates:', err);
+  }
+
+  // Resolved rates: exact day settlement -> latest past settlement -> system_settings -> default (2.5)
+  const dkCommissionRate = dkSettlement?.commission_rate 
+    ?? latestDkSettlement?.commission_rate 
+    ?? defaultDk;
+
+  const palmCommissionRate = palmSettlement?.commission_rate 
+    ?? latestPalmSettlement?.commission_rate 
+    ?? defaultPalm;
+
+  let dkRateDiff = 0;
+  let palmRateDiff = 0;
+  if (startDate === endDate) {
+    dkRateDiff = dkSettlement ? dkSettlement.rate_difference : 0;
+    palmRateDiff = palmSettlement ? palmSettlement.rate_difference : 0;
+  } else {
+    const diffs = db.prepare(`
+      SELECT business_id, COALESCE(SUM(rate_difference), 0) as total_diff
+      FROM daily_card_settlements
+      WHERE date >= ? AND date <= ?
+      GROUP BY business_id
+    `).all(startDate, endDate);
+    for (const d of diffs) {
+      if (d.business_id === 'DK') dkRateDiff = d.total_diff;
+      if (d.business_id === 'PALM') palmRateDiff = d.total_diff;
+    }
+  }
+
   const dkGrossCard = sales.DK.kart;
   const dkCommissionAmount = Math.round((dkGrossCard * dkCommissionRate / 100) * 100) / 100;
   const dkNetBankCard = Math.round((dkGrossCard - dkCommissionAmount - dkRateDiff) * 100) / 100;
 
-  const palmCommissionRate = palmSettlement ? palmSettlement.commission_rate : defaultPalm;
-  const palmRateDiff = palmSettlement ? palmSettlement.rate_difference : 0; // manual +/- TL difference
   const palmGrossCard = sales.PALM.kart;
   const palmCommissionAmount = Math.round((palmGrossCard * palmCommissionRate / 100) * 100) / 100;
   const palmNetBankCard = Math.round((palmGrossCard - palmCommissionAmount - palmRateDiff) * 100) / 100;
