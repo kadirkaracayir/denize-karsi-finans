@@ -64,9 +64,9 @@ export default function PersonnelPuantajHub() {
   // Active Tab: 'hours' (🕒 Günlük Saat Girişi & Düzenleme) | 'matrix' (📅 Aylık 1-31 PDKS) | 'weekly' (💵 Haftalık Pazar Ödeme)
   const [activeTab, setActiveTab] = useState('hours');
 
-  const defaultDate = '2026-09-08';
+  const defaultDate = '2026-10-08';
   const initialYear = 2026;
-  const initialMonth = 9;
+  const initialMonth = 10;
 
   // Selected date for daily time entry
   const [dailyDate, setDailyDate] = useState(defaultDate);
@@ -84,8 +84,8 @@ export default function PersonnelPuantajHub() {
   const [dailyAttendance, setDailyAttendance] = useState([]);
   const [weeklySummary, setWeeklySummary] = useState(null);
   const [weeklyPeriodMode, setWeeklyPeriodMode] = useState('all'); // 'all' | 'week' | 'custom'
-  const [weeklyCustomStartDate, setWeeklyCustomStartDate] = useState('2026-09-05');
-  const [weeklyCustomEndDate, setWeeklyCustomEndDate] = useState('2026-09-08');
+  const [weeklyCustomStartDate, setWeeklyCustomStartDate] = useState('2026-10-05');
+  const [weeklyCustomEndDate, setWeeklyCustomEndDate] = useState('2026-10-08');
   const [weeklySearchQuery, setWeeklySearchQuery] = useState('');
   const [weeklyOnlyWorking, setWeeklyOnlyWorking] = useState(false);
   const [matrixData, setMatrixData] = useState(null);
@@ -139,13 +139,13 @@ export default function PersonnelPuantajHub() {
     }
   }, [dailyDate]);
 
-  // Load Excel Matrix (September 2026 - 4 Days)
+  // Load Excel Matrix (October 2026 - 4 Days)
   const loadExcelMatrix = useCallback(async () => {
     setIsLoading(true);
     try {
       const data = await api.get('/employees/attendance/monthly-matrix', {
         year: 2026,
-        month: 9
+        month: 10
       });
       if (data.success) {
         setExcelMatrixData(data);
@@ -703,8 +703,8 @@ export default function PersonnelPuantajHub() {
   // Excel Export for Date Range (2 Tarih Arası Puantaj ve Ödeme Dökümü)
   const handleExportRangeExcel = () => {
     const token = localStorage.getItem('dk_auth_token') || localStorage.getItem('token');
-    const s = weeklyCustomStartDate || weeklySummary?.startDate || '2026-09-05';
-    const e = weeklyCustomEndDate || weeklySummary?.endDate || '2026-09-08';
+    const s = weeklyCustomStartDate || weeklySummary?.startDate || '2026-10-05';
+    const e = weeklyCustomEndDate || weeklySummary?.endDate || '2026-10-08';
     window.location.href = `/api/employees/attendance/export-excel?startDate=${s}&endDate=${e}&token=${token}`;
   };
 
@@ -1314,7 +1314,7 @@ export default function PersonnelPuantajHub() {
                     }`}
                   >
                     <Coins className="w-3.5 h-3.5" />
-                    <span>🌟 Tüm Girilen Dönem (05-08 Eylül)</span>
+                    <span>🌟 Tüm Girilen Dönem (05-08 Ekim)</span>
                   </button>
 
                   {weeklySummary?.availableWeeks?.map(w => {
@@ -1351,7 +1351,7 @@ export default function PersonnelPuantajHub() {
                   <span className="text-[11px] text-slate-500 font-bold">Başlangıç:</span>
                   <input
                     type="date"
-                    value={weeklyCustomStartDate || '2026-09-05'}
+                    value={weeklyCustomStartDate || '2026-10-05'}
                     onChange={(e) => setWeeklyCustomStartDate(e.target.value)}
                     className="px-3 py-1.5 bg-white text-slate-900 rounded-lg border border-slate-300 text-xs font-bold shadow-2xs focus:ring-2 focus:ring-emerald-500"
                     style={{ color: '#0f172a', backgroundColor: '#ffffff' }}
@@ -1362,7 +1362,7 @@ export default function PersonnelPuantajHub() {
                   <span className="text-[11px] text-slate-500 font-bold">Bitiş:</span>
                   <input
                     type="date"
-                    value={weeklyCustomEndDate || '2026-09-08'}
+                    value={weeklyCustomEndDate || '2026-10-08'}
                     onChange={(e) => setWeeklyCustomEndDate(e.target.value)}
                     className="px-3 py-1.5 bg-white text-slate-900 rounded-lg border border-slate-300 text-xs font-bold shadow-2xs focus:ring-2 focus:ring-emerald-500"
                     style={{ color: '#0f172a', backgroundColor: '#ffffff' }}
@@ -1371,8 +1371,8 @@ export default function PersonnelPuantajHub() {
                 <button
                   type="button"
                   onClick={() => {
-                    const s = weeklyCustomStartDate || '2026-09-05';
-                    const e = weeklyCustomEndDate || '2026-09-08';
+                    const s = weeklyCustomStartDate || '2026-10-05';
+                    const e = weeklyCustomEndDate || '2026-10-08';
                     setWeeklyPeriodMode('custom');
                     loadWeeklySummary({ startDate: s, endDate: e });
                   }}
@@ -1592,12 +1592,12 @@ export default function PersonnelPuantajHub() {
               </button>
 
               <button
-                onClick={() => { setSelectedMonth(9); setSelectedYear(2026); }}
+                onClick={() => { setSelectedMonth(10); setSelectedYear(2026); }}
                 className={`ml-2 px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                  selectedMonth === 9 ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  selectedMonth === 10 ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                 }`}
               >
-                Eylül 2026 (Kayıtlı Puantaj)
+                Ekim 2026 (Kayıtlı Puantaj)
               </button>
             </div>
 

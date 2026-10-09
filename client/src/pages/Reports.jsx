@@ -26,11 +26,11 @@ export default function Reports() {
   const [activeTab, setActiveTab] = useState('custom'); // 'custom', 'daily', 'weekly', 'monthly', 'yearly'
   const [viewScope, setViewScope] = useState('personnel'); // 'all' (Gelir & Gider), 'income' (Sadece Gelir), 'expenses' (Sadece Gider), 'personnel' (Personel & Avans)
   
-  const [targetDate, setTargetDate] = useState('2026-09-08');
-  const [targetMonth, setTargetMonth] = useState('09');
+  const [targetDate, setTargetDate] = useState('2026-10-08');
+  const [targetMonth, setTargetMonth] = useState('10');
   const [targetYear, setTargetYear] = useState('2026');
-  const [customStartDate, setCustomStartDate] = useState('2026-09-05');
-  const [customEndDate, setCustomEndDate] = useState('2026-09-08');
+  const [customStartDate, setCustomStartDate] = useState('2026-10-05');
+  const [customEndDate, setCustomEndDate] = useState('2026-10-08');
 
   const [reportData, setReportData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -78,7 +78,7 @@ export default function Reports() {
     } else if (activeTab === 'daily') {
       url += `&date=${targetDate}`;
     } else if (activeTab === 'weekly') {
-      url += `&startDate=${reportData?.startDate || '2026-09-05'}&endDate=${reportData?.endDate || '2026-09-08'}`;
+      url += `&startDate=${reportData?.startDate || '2026-10-05'}&endDate=${reportData?.endDate || '2026-10-08'}`;
     } else if (activeTab === 'monthly') {
       url += `&year=${targetYear}&month=${targetMonth}`;
     } else if (activeTab === 'yearly') {
@@ -161,13 +161,13 @@ export default function Reports() {
               <button
                 type="button"
                 onClick={() => {
-                  setCustomStartDate('2026-09-05');
-                  setCustomEndDate('2026-09-08');
+                  setCustomStartDate('2026-10-05');
+                  setCustomEndDate('2026-10-08');
                 }}
                 className="px-2.5 py-1 bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300 rounded-lg text-xs font-bold cursor-pointer transition-colors"
-                title="Girilmiş olan Eylül puantaj dönemini seç"
+                title="Girilmiş olan Ekim puantaj dönemini seç"
               >
-                🌟 05-08 Eylül Puantajı
+                🌟 05-08 Ekim Puantajı
               </button>
             </div>
           )}
@@ -183,10 +183,10 @@ export default function Reports() {
               />
               <button
                 type="button"
-                onClick={() => setTargetDate('2026-09-08')}
+                onClick={() => setTargetDate('2026-10-08')}
                 className="px-2.5 py-1 bg-blue-50 hover:bg-blue-100 text-blue-800 border border-blue-200 rounded-lg text-xs font-bold cursor-pointer"
               >
-                08 Eylül
+                08 Ekim
               </button>
             </div>
           )}
@@ -203,10 +203,10 @@ export default function Reports() {
               />
               <button
                 type="button"
-                onClick={() => setTargetDate('2026-09-08')}
+                onClick={() => setTargetDate('2026-10-08')}
                 className="px-2 py-1 bg-blue-50 hover:bg-blue-100 text-blue-800 border border-blue-200 rounded-lg text-xs font-bold cursor-pointer"
               >
-                08 Eylül Haftası
+                08 Ekim Haftası
               </button>
               {reportData?.startDate && (
                 <span className="bg-blue-50 text-blue-700 px-2 py-0.5 rounded font-bold">
@@ -249,12 +249,12 @@ export default function Reports() {
               <button
                 type="button"
                 onClick={() => {
-                  setTargetMonth('09');
+                  setTargetMonth('10');
                   setTargetYear('2026');
                 }}
                 className="px-2.5 py-1 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 rounded-lg text-xs font-bold cursor-pointer"
               >
-                Eylül 2026
+                Ekim 2026
               </button>
             </div>
           )}
