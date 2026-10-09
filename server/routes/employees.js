@@ -380,12 +380,12 @@ router.get('/attendance/active-dates', authenticateToken, (req, res) => {
     const dates = db.prepare(`
       SELECT 
         date, 
-        COUNT(CASE WHEN status = 'CALISTI' THEN 1 END) as worked_count,
+        COUNT(CASE WHEN status IN ('CALISTI', 'YARIM_GUN') THEN 1 END) as worked_count,
         COUNT(*) as total_records,
-        SUM(CASE WHEN status = 'CALISTI' THEN accrual_amount ELSE 0 END) as total_accrual,
-        SUM(CASE WHEN status = 'CALISTI' THEN hours_worked ELSE 0 END) as total_hours
+        SUM(CASE WHEN status IN ('CALISTI', 'YARIM_GUN') THEN accrual_amount ELSE 0 END) as total_accrual,
+        SUM(CASE WHEN status IN ('CALISTI', 'YARIM_GUN') THEN hours_worked ELSE 0 END) as total_hours
       FROM attendance
-      WHERE hours_worked > 0 OR status = 'CALISTI'
+      WHERE hours_worked > 0 OR status IN ('CALISTI', 'YARIM_GUN')
       GROUP BY date
       ORDER BY date DESC
     `).all();
@@ -764,19 +764,73 @@ router.post(
 // Weekly Summary with Sunday Payout Policy (Haftalık Puantaj & Pazar Ödeme Dökümü)
 router.get('/attendance/weekly-summary', authenticateToken, (req, res) => {
   try {
-    const targetDate = req.query.date || '2026-10-08';
-    const [y, m, d] = targetDate.split('-').map(Number);
-    const curr = new Date(y, m - 1, d);
+    const formatLocalDate = (dt) => {
+      const yr = dt.getFullYear();
+      const mo = String(dt.getMonth() + 1).padStart(2, '0');
+      const da = String(dt.getDate()).padStart(2, '0');
+      return `${yr}-${mo}-${da}`;
+    };
 
-    // Calculate Monday and Sunday of this week
-    const day = curr.getDay();
-    const diff = curr.getDate() - day + (day === 0 ? -6 : 1);
-    const monday = new Date(curr.setDate(diff));
-    const sunday = new Date(monday);
-    sunday.setDate(sunday.getDate() + 6);
+    // Determine min/max date with attendance in database
+    const minMax = db.prepare('SELECT MIN(date) as min_date, MAX(date) as max_date, COUNT(*) as total_rows FROM attendance').get();
+    
+    // Find all distinct weeks that contain attendance records
+    const distinctDates = db.prepare('SELECT DISTINCT date FROM attendance ORDER BY date ASC').all();
+    
+    const availableWeeksMap = new Map();
+    for (const row of distinctDates) {
+      const [y, m, d] = row.date.split('-').map(Number);
+      const dt = new Date(y, m - 1, d);
+      const dayOfWeek = dt.getDay(); // 0 is Sunday
+      const diffToMonday = dt.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1);
+      const mon = new Date(y, m - 1, diffToMonday);
+      const sun = new Date(y, m - 1, diffToMonday + 6);
+      const monStr = formatLocalDate(mon);
+      const sunStr = formatLocalDate(sun);
+      const key = `${monStr}_${sunStr}`;
+      if (!availableWeeksMap.has(key)) {
+        const monTR = monStr.split('-').reverse().join('.');
+        const sunTR = sunStr.split('-').reverse().join('.');
+        availableWeeksMap.set(key, {
+          startDate: monStr,
+          endDate: sunStr,
+          pazarDate: sunStr,
+          label: `${monTR} — ${sunTR} (Pazar Kapanışı)`
+        });
+      }
+    }
+    const availableWeeks = Array.from(availableWeeksMap.values());
 
-    const sStr = monday.toISOString().split('T')[0];
-    const eStr = sunday.toISOString().split('T')[0];
+    let sStr, eStr;
+    let periodTitle = '';
+    const requestedPeriod = req.query.period; // 'all' | 'week' | 'custom'
+
+    if (requestedPeriod === 'all' || (!req.query.date && !req.query.startDate && !requestedPeriod)) {
+      // Default to ALL entered period if no specific week requested, so user sees all data right away!
+      sStr = minMax?.min_date || '2026-09-05';
+      eStr = minMax?.max_date || '2026-09-08';
+      periodTitle = `Tüm Kayıtlı Puantaj Dönemi (${sStr.split('-').reverse().join('.')} — ${eStr.split('-').reverse().join('.')})`;
+    } else if (req.query.startDate && req.query.endDate) {
+      sStr = req.query.startDate;
+      eStr = req.query.endDate;
+      periodTitle = `${sStr.split('-').reverse().join('.')} — ${eStr.split('-').reverse().join('.')}`;
+    } else {
+      let targetDate = req.query.date;
+      if (!targetDate && minMax?.max_date) {
+        targetDate = minMax.max_date;
+      }
+      targetDate = targetDate || '2026-09-08';
+
+      const [y, m, d] = targetDate.split('-').map(Number);
+      const curr = new Date(y, m - 1, d);
+      const dayOfWeek = curr.getDay();
+      const diffToMonday = curr.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1);
+      const monday = new Date(y, m - 1, diffToMonday);
+      const sunday = new Date(y, m - 1, diffToMonday + 6);
+      sStr = formatLocalDate(monday);
+      eStr = formatLocalDate(sunday);
+      periodTitle = `${sStr.split('-').reverse().join('.')} — ${eStr.split('-').reverse().join('.')} (Pazar Kapanışı)`;
+    }
 
     const employees = db.prepare('SELECT * FROM employees WHERE is_active = 1 ORDER BY name ASC').all();
 
@@ -844,12 +898,13 @@ router.get('/attendance/weekly-summary', authenticateToken, (req, res) => {
         daily_rate: emp.daily_rate,
         accrual_type: emp.accrual_type,
         weekly_hours: Math.round(weeklyHours * 100) / 100,
-        weekly_accrual: weeklyAccrual,
+        weekly_accrual: Math.round(weeklyAccrual * 100) / 100,
         weekly_advances: weeklyAdvances,
         weekly_paid: weeklyPaid,
-        pazar_remaining: pazarRemaining,
-        overall_debt: overallDebt,
-        days: daysMap
+        pazar_remaining: Math.round(pazarRemaining * 100) / 100,
+        overall_debt: Math.round(overallDebt * 100) / 100,
+        days: daysMap,
+        record_count: records.length
       };
     });
 
@@ -858,13 +913,18 @@ router.get('/attendance/weekly-summary', authenticateToken, (req, res) => {
       startDate: sStr,
       endDate: eStr,
       pazarDate: eStr,
+      periodTitle,
+      periodMode: requestedPeriod || (sStr === minMax?.min_date && eStr === minMax?.max_date ? 'all' : 'week'),
+      availableWeeks,
+      minDate: minMax?.min_date,
+      maxDate: minMax?.max_date,
       employees: list,
       totals: {
         totalWeeklyHours: Math.round(totalWeeklyHours * 100) / 100,
-        totalWeeklyAccrual,
-        totalWeeklyAdvances,
-        totalWeeklyPaid,
-        totalPazarRemaining
+        totalWeeklyAccrual: Math.round(totalWeeklyAccrual * 100) / 100,
+        totalWeeklyAdvances: Math.round(totalWeeklyAdvances * 100) / 100,
+        totalWeeklyPaid: Math.round(totalWeeklyPaid * 100) / 100,
+        totalPazarRemaining: Math.round(totalPazarRemaining * 100) / 100
       }
     });
   } catch (err) {

@@ -83,6 +83,11 @@ export default function PersonnelPuantajHub() {
   // State data
   const [dailyAttendance, setDailyAttendance] = useState([]);
   const [weeklySummary, setWeeklySummary] = useState(null);
+  const [weeklyPeriodMode, setWeeklyPeriodMode] = useState('all'); // 'all' | 'week' | 'custom'
+  const [weeklyCustomStartDate, setWeeklyCustomStartDate] = useState('');
+  const [weeklyCustomEndDate, setWeeklyCustomEndDate] = useState('');
+  const [weeklySearchQuery, setWeeklySearchQuery] = useState('');
+  const [weeklyOnlyWorking, setWeeklyOnlyWorking] = useState(false);
   const [matrixData, setMatrixData] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [toastMessage, setToastMessage] = useState(null);
@@ -191,17 +196,31 @@ export default function PersonnelPuantajHub() {
     }
   }, [dailyDate]);
 
-  // Load Weekly Summary (Pazar günleri haftalık ödeme dökümü)
-  const loadWeeklySummary = useCallback(async () => {
+  // Load Weekly Summary (Pazar günleri haftalık ödeme dökümü & Dönemsel Özet)
+  const loadWeeklySummary = useCallback(async (customParams = null) => {
     try {
-      const res = await api.get('/employees/attendance/weekly-summary', { date: dailyDate });
+      setIsLoading(true);
+      let params = {};
+      if (customParams) {
+        params = customParams;
+      } else if (weeklyPeriodMode === 'all') {
+        params = { period: 'all' };
+      } else if (weeklyPeriodMode === 'custom' && weeklyCustomStartDate && weeklyCustomEndDate) {
+        params = { startDate: weeklyCustomStartDate, endDate: weeklyCustomEndDate };
+      } else {
+        params = { date: dailyDate || '2026-09-08' };
+      }
+
+      const res = await api.get('/employees/attendance/weekly-summary', params);
       if (res.success) {
         setWeeklySummary(res);
       }
     } catch (err) {
       console.error('Weekly summary load error:', err);
+    } finally {
+      setIsLoading(false);
     }
-  }, [dailyDate]);
+  }, [weeklyPeriodMode, weeklyCustomStartDate, weeklyCustomEndDate, dailyDate]);
 
   // Load Monthly Matrix
   const loadMatrix = useCallback(async () => {
@@ -223,16 +242,14 @@ export default function PersonnelPuantajHub() {
   }, [loadActiveDates]);
 
   useEffect(() => {
-    if (activeTab === 'excel') {
-      loadExcelMatrix();
-    } else if (activeTab === 'hours') {
+    if (activeTab === 'hours') {
       loadDailyAttendance();
     } else if (activeTab === 'weekly') {
       loadWeeklySummary();
     } else if (activeTab === 'matrix') {
       loadMatrix();
     }
-  }, [activeTab, dailyDate, selectedYear, selectedMonth, loadExcelMatrix, loadDailyAttendance, loadWeeklySummary, loadMatrix]);
+  }, [activeTab, dailyDate, selectedYear, selectedMonth, loadDailyAttendance, loadWeeklySummary, loadMatrix]);
 
   // Live time changes calculation on row (SADECE Saatlik Ücret ile hesaplama)
   const handleTimeChange = (empId, field, value) => {
@@ -362,7 +379,9 @@ export default function PersonnelPuantajHub() {
       return;
     }
 
-    const rowsHtml = (weeklySummary.employees || []).map((emp, idx) => `
+    const employeesToPrint = (weeklySummary.employees || []).filter(e => !weeklyOnlyWorking || e.weekly_hours > 0 || e.weekly_accrual > 0);
+
+    const rowsHtml = employeesToPrint.map((emp, idx) => `
       <tr style="border-bottom: 1px solid #e2e8f0; font-size: 11px;">
         <td style="padding: 8px 6px; text-align: center; color: #64748b;">${idx + 1}</td>
         <td style="padding: 8px 6px; font-weight: bold; color: #0f172a;">${emp.name}</td>
@@ -377,12 +396,14 @@ export default function PersonnelPuantajHub() {
       </tr>
     `).join('');
 
+    const displayPeriod = weeklySummary.periodTitle || `${weeklySummary.startDate} — ${weeklySummary.endDate}`;
+
     const htmlContent = `
       <!DOCTYPE html>
       <html>
       <head>
         <meta charset="utf-8" />
-        <title>Haftalık ve Pazar Personel Ödeme Dökümü (${weeklySummary.startDate} - ${weeklySummary.endDate})</title>
+        <title>Personel Hakediş ve Ödeme Dökümü (${displayPeriod})</title>
         <style>
           @page { size: A4 landscape; margin: 10mm; }
           body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; color: #0f172a; margin: 0; padding: 20px; }
@@ -406,10 +427,10 @@ export default function PersonnelPuantajHub() {
         <div class="header">
           <div>
             <div class="title">DENİZE KARŞI & PALM BEACH</div>
-            <div class="sub">HAFTALIK PERSONEL PUANTAJ & PAZAR HAKEDİŞ ÖDEME DÖKÜMÜ</div>
+            <div class="sub">HAFTALIK & DÖNEMSEL PERSONEL PUANTAJ & HAKEDİŞ ÖDEME DÖKÜMÜ</div>
           </div>
           <div>
-            <span class="badge">Dönem: ${weeklySummary.startDate} — ${weeklySummary.endDate} (Pazar Ödemesi)</span>
+            <span class="badge">${displayPeriod}</span>
           </div>
         </div>
 
@@ -1234,131 +1255,286 @@ export default function PersonnelPuantajHub() {
       {/* ========================================================= */}
       {/* TAB 2: HAFTALIK & PAZAR ÖDEME DÖKÜMÜ (Pazar Günleri Haftalık Ödeme) */}
       {/* ========================================================= */}
-      {activeTab === 'weekly' && (
-        <div className="space-y-4">
-          <div className="bg-gradient-to-r from-emerald-900 via-teal-900 to-slate-900 text-white p-5 rounded-2xl shadow-lg flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div>
-              <span className="text-[11px] uppercase tracking-wider font-extrabold text-emerald-300">
-                HAFTALIK PERSONEL ÖDEME DÖNEMİ (PAZAR HAKEDİŞ KAPANIŞI)
-              </span>
-              <h2 className="text-lg font-black text-white mt-1">
-                Hafta: {weeklySummary?.startDate} — {weeklySummary?.endDate} (Pazar Günü Ödeme)
-              </h2>
-              <p className="text-xs text-slate-300 mt-0.5">
-                Genel şirket politikası: Hafta içi girilen çalışma saatleri ve alınan avanslar düşüldükten sonra kalan net tutar Pazar günleri ödenir.
-              </p>
+      {/* ========================================================= */}
+      {/* TAB 2: HAFTALIK & PAZAR ÖDEME DÖKÜMÜ (Pazar Günleri Haftalık Ödeme) */}
+      {/* ========================================================= */}
+      {activeTab === 'weekly' && (() => {
+        const filteredWeeklyEmployees = (weeklySummary?.employees || []).filter(emp => {
+          if (weeklyOnlyWorking && (emp.weekly_hours === 0 && emp.weekly_accrual === 0)) return false;
+          if (weeklySearchQuery.trim()) {
+            const q = weeklySearchQuery.toLowerCase();
+            const nameMatch = emp.name?.toLowerCase().includes(q);
+            const roleMatch = emp.role?.toLowerCase().includes(q);
+            return nameMatch || roleMatch;
+          }
+          return true;
+        });
+
+        const sumFilteredHours = filteredWeeklyEmployees.reduce((acc, curr) => acc + (curr.weekly_hours || 0), 0);
+        const sumFilteredAccrual = filteredWeeklyEmployees.reduce((acc, curr) => acc + (curr.weekly_accrual || 0), 0);
+        const sumFilteredAdvances = filteredWeeklyEmployees.reduce((acc, curr) => acc + (curr.weekly_advances || 0), 0);
+        const sumFilteredPaid = filteredWeeklyEmployees.reduce((acc, curr) => acc + (curr.weekly_paid || 0), 0);
+        const sumFilteredRemaining = filteredWeeklyEmployees.reduce((acc, curr) => acc + (curr.pazar_remaining || 0), 0);
+
+        return (
+          <div className="space-y-4">
+            {/* Quick Period & Week Switcher Bar */}
+            <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs space-y-3">
+              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 border-b border-slate-100 pb-3">
+                <div className="flex items-center space-x-2">
+                  <div className="p-2 rounded-xl bg-emerald-50 text-emerald-700">
+                    <Calendar className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-black text-slate-900 text-sm">Puantaj ve Ödeme Dönemi Seçimi</h3>
+                    <p className="text-[11px] text-slate-500">Pazar ödeme dökümünü tüm kayıtlı dönem veya haftalık bazda anında inceleyin.</p>
+                  </div>
+                </div>
+
+                {/* Period Mode Buttons */}
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setWeeklyPeriodMode('all');
+                      loadWeeklySummary({ period: 'all' });
+                    }}
+                    className={`px-3.5 py-1.5 rounded-xl text-xs font-black transition-all flex items-center space-x-1.5 cursor-pointer ${
+                      weeklyPeriodMode === 'all'
+                        ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/30 ring-2 ring-emerald-400'
+                        : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200'
+                    }`}
+                  >
+                    <Coins className="w-3.5 h-3.5" />
+                    <span>🌟 Tüm Girilen Dönem (05-08 Eylül)</span>
+                  </button>
+
+                  {weeklySummary?.availableWeeks?.map(w => {
+                    const isSelected = weeklyPeriodMode === 'week' && weeklySummary.startDate === w.startDate && weeklySummary.endDate === w.endDate;
+                    return (
+                      <button
+                        key={w.startDate}
+                        type="button"
+                        onClick={() => {
+                          setWeeklyPeriodMode('week');
+                          loadWeeklySummary({ startDate: w.startDate, endDate: w.endDate });
+                        }}
+                        className={`px-3.5 py-1.5 rounded-xl text-xs font-black transition-all flex items-center space-x-1.5 cursor-pointer ${
+                          isSelected
+                            ? 'bg-blue-600 text-white shadow-md shadow-blue-600/30 ring-2 ring-blue-400'
+                            : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200'
+                        }`}
+                      >
+                        <Clock className="w-3.5 h-3.5" />
+                        <span>{w.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Custom Range Picker */}
+              <div className="flex flex-wrap items-center gap-3 pt-1 text-xs">
+                <span className="font-bold text-slate-600 text-[11px]">Özel Tarih Aralığı:</span>
+                <input
+                  type="date"
+                  value={weeklyCustomStartDate || weeklySummary?.startDate || ''}
+                  onChange={(e) => setWeeklyCustomStartDate(e.target.value)}
+                  className="px-2.5 py-1 bg-white rounded-lg border border-slate-300 text-xs font-bold text-slate-800"
+                />
+                <span className="text-slate-400">—</span>
+                <input
+                  type="date"
+                  value={weeklyCustomEndDate || weeklySummary?.endDate || ''}
+                  onChange={(e) => setWeeklyCustomEndDate(e.target.value)}
+                  className="px-2.5 py-1 bg-white rounded-lg border border-slate-300 text-xs font-bold text-slate-800"
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (weeklyCustomStartDate && weeklyCustomEndDate) {
+                      setWeeklyPeriodMode('custom');
+                      loadWeeklySummary({ startDate: weeklyCustomStartDate, endDate: weeklyCustomEndDate });
+                    }
+                  }}
+                  className="px-3.5 py-1 bg-slate-900 hover:bg-slate-800 text-white rounded-lg font-bold cursor-pointer"
+                >
+                  Filtrele
+                </button>
+              </div>
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-white/10 p-3 rounded-xl border border-white/10 text-xs">
+            {/* KPI Banner */}
+            <div className="bg-gradient-to-r from-emerald-900 via-teal-900 to-slate-900 text-white p-5 rounded-2xl shadow-lg flex flex-col md:flex-row md:items-center justify-between gap-4">
               <div>
-                <span className="text-slate-300 text-[10px] block">Toplam Çalışılan Saat</span>
-                <span className="text-base font-extrabold text-emerald-300">{weeklySummary?.totals?.totalWeeklyHours || 0} Saat</span>
+                <span className="text-[11px] uppercase tracking-wider font-extrabold text-emerald-300">
+                  HAFTALIK & DÖNEMSEL PERSONEL ÖDEME DÖKÜMÜ
+                </span>
+                <h2 className="text-lg font-black text-white mt-1">
+                  {weeklySummary?.periodTitle || `Dönem: ${weeklySummary?.startDate} — ${weeklySummary?.endDate}`}
+                </h2>
+                <p className="text-xs text-slate-300 mt-0.5">
+                  Genel şirket politikası: Hafta içi girilen çalışma saatleri ve alınan avanslar düşüldükten sonra kalan net tutar Pazar günleri ödenir.
+                </p>
               </div>
-              <div>
-                <span className="text-slate-300 text-[10px] block">Haftalık Toplam Hakediş</span>
-                <span className="text-base font-extrabold text-emerald-300">{formatCurrency(weeklySummary?.totals?.totalWeeklyAccrual || 0)}</span>
-              </div>
-              <div>
-                <span className="text-slate-300 text-[10px] block">Verilen Avanslar</span>
-                <span className="text-base font-extrabold text-amber-300">-{formatCurrency(weeklySummary?.totals?.totalWeeklyAdvances || 0)}</span>
-              </div>
-              <div>
-                <span className="text-slate-300 text-[10px] block">Pazar Kalan Net Ödeme</span>
-                <span className="text-base font-black text-white">{formatCurrency(weeklySummary?.totals?.totalPazarRemaining || 0)}</span>
+
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-white/10 p-3 rounded-xl border border-white/10 text-xs">
+                <div>
+                  <span className="text-slate-300 text-[10px] block">Toplam Çalışılan Saat</span>
+                  <span className="text-base font-extrabold text-emerald-300">{weeklySummary?.totals?.totalWeeklyHours || 0} Saat</span>
+                </div>
+                <div>
+                  <span className="text-slate-300 text-[10px] block">Dönem Toplam Hakediş</span>
+                  <span className="text-base font-extrabold text-emerald-300">{formatCurrency(weeklySummary?.totals?.totalWeeklyAccrual || 0)}</span>
+                </div>
+                <div>
+                  <span className="text-slate-300 text-[10px] block">Verilen Avanslar</span>
+                  <span className="text-base font-extrabold text-amber-300">-{formatCurrency(weeklySummary?.totals?.totalWeeklyAdvances || 0)}</span>
+                </div>
+                <div>
+                  <span className="text-slate-300 text-[10px] block">Kalan Net Ödeme</span>
+                  <span className="text-base font-black text-white">{formatCurrency(weeklySummary?.totals?.totalPazarRemaining || 0)}</span>
+                </div>
               </div>
             </div>
-          </div>
 
-          {/* Action Bar for Weekly PDF */}
-          <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div>
-              <h3 className="text-sm font-black text-slate-900">
-                Pazar Günü Personel Hakediş & Ödeme Listesi
-              </h3>
-              <p className="text-xs text-slate-500">
-                Pazar günü personele elden veya hesaba yapılacak net ödeme tablosu.
-              </p>
+            {/* Action Bar for Weekly PDF & Filter */}
+            <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex flex-wrap items-center gap-3">
+                <input
+                  type="text"
+                  value={weeklySearchQuery}
+                  onChange={(e) => setWeeklySearchQuery(e.target.value)}
+                  placeholder="🔍 Personel adı veya görevi ara..."
+                  className="px-3 py-1.5 bg-white rounded-xl border border-slate-300 text-xs font-bold text-slate-900 placeholder:text-slate-400 w-60 focus:ring-2 focus:ring-emerald-500"
+                />
+                <label className="flex items-center space-x-1.5 text-xs font-bold text-slate-700 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={weeklyOnlyWorking}
+                    onChange={(e) => setWeeklyOnlyWorking(e.target.checked)}
+                    className="rounded text-emerald-600 focus:ring-emerald-500 w-4 h-4 cursor-pointer"
+                  />
+                  <span>Sadece Çalışanları Listele ({weeklySummary?.employees?.filter(e => (e.weekly_hours > 0 || e.weekly_accrual > 0)).length || 0})</span>
+                </label>
+              </div>
+
+              <button
+                onClick={handlePrintWeeklyPDF}
+                className="px-4 py-2 rounded-xl text-xs font-bold bg-slate-900 hover:bg-slate-800 text-white shadow-xs transition-all flex items-center space-x-1.5 self-start sm:self-auto cursor-pointer"
+              >
+                <Download className="w-4 h-4 text-emerald-400" />
+                <span>📄 Haftalık & Pazar Dökümü (PDF / Yazdır)</span>
+              </button>
             </div>
-            <button
-              onClick={handlePrintWeeklyPDF}
-              className="px-3.5 py-2 rounded-xl text-xs font-bold bg-slate-900 hover:bg-slate-800 text-white shadow-xs transition-all flex items-center space-x-1.5 self-start sm:self-auto"
-            >
-              <Download className="w-4 h-4 text-emerald-400" />
-              <span>📄 Haftalık & Pazar Dökümü (PDF / Yazdır)</span>
-            </button>
-          </div>
 
-          {/* Weekly Table */}
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-xs text-left border-collapse">
-                <thead className="bg-slate-50 text-slate-500 font-bold uppercase text-[10px] border-b border-slate-200">
-                  <tr>
-                    <th className="py-3 px-3">Personel</th>
-                    <th className="py-3 px-2 text-right">Haftalık Saat</th>
-                    <th className="py-3 px-3 text-right">Saatlik Ücret</th>
-                    <th className="py-3 px-3 text-right">Toplam Hakediş</th>
-                    <th className="py-3 px-3 text-right">Alınan Avans</th>
-                    <th className="py-3 px-3 text-right">Yapılan Ödeme</th>
-                    <th className="py-3 px-3 text-right bg-emerald-50 text-emerald-900">Pazar Kalan Ödenecek</th>
-                    <th className="py-3 px-3 text-right">Kümülatif Toplam Borç</th>
-                    <th className="py-3 px-3 text-center">İşlemler</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {weeklySummary?.employees?.map((emp) => (
-                    <tr key={emp.id} className="hover:bg-slate-50/80">
-                      <td className="py-3 px-3">
-                        <div className="font-bold text-slate-900">{emp.name}</div>
-                        <div className="text-[10px] text-slate-400">{emp.role}</div>
-                      </td>
-                      <td className="py-3 px-2 text-right font-bold text-blue-700">
-                        {emp.weekly_hours} Saat
-                      </td>
-                      <td className="py-3 px-3 text-right text-slate-600">
-                        {emp.accrual_type === 'SAATLIK' ? `${emp.hourly_rate} TL` : `${emp.daily_rate} TL (Gün)`}
-                      </td>
-                      <td className="py-3 px-3 text-right font-black text-slate-900">
-                        {formatCurrency(emp.weekly_accrual)}
-                      </td>
-                      <td className="py-3 px-3 text-right font-bold text-amber-700">
-                        {emp.weekly_advances > 0 ? `-${formatCurrency(emp.weekly_advances)}` : '-'}
-                      </td>
-                      <td className="py-3 px-3 text-right font-semibold text-blue-700">
-                        {emp.weekly_paid > 0 ? formatCurrency(emp.weekly_paid) : '-'}
-                      </td>
-                      <td className="py-3 px-3 text-right font-black text-sm bg-emerald-50 text-emerald-800">
-                        {formatCurrency(emp.pazar_remaining)}
-                      </td>
-                      <td className="py-3 px-3 text-right font-bold text-slate-700">
-                        {formatCurrency(emp.overall_debt)}
-                      </td>
-                      <td className="py-3 px-3 text-center">
-                        <div className="flex items-center justify-center space-x-1.5">
-                          <button
-                            onClick={() => handleOpenAdvanceModal(emp)}
-                            className="px-2 py-1 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-[11px] font-bold transition-all shadow-2xs"
-                            title="Personele Avans Ver"
-                          >
-                            Avans
-                          </button>
-                          <button
-                            onClick={() => handleOpenPazarPaymentModal(emp)}
-                            className="px-2 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[11px] font-bold transition-all shadow-2xs"
-                            title="Pazar Hakedişini Öde"
-                          >
-                            Öde
-                          </button>
-                        </div>
-                      </td>
+            {/* Weekly Table */}
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs text-left border-collapse">
+                  <thead className="bg-slate-50 text-slate-500 font-bold uppercase text-[10px] border-b border-slate-200">
+                    <tr>
+                      <th className="py-3 px-3">#</th>
+                      <th className="py-3 px-3">Personel</th>
+                      <th className="py-3 px-2 text-right">Dönem Saati</th>
+                      <th className="py-3 px-3 text-right">Saat / Gün Ücreti</th>
+                      <th className="py-3 px-3 text-right">Toplam Hakediş</th>
+                      <th className="py-3 px-3 text-right">Alınan Avans</th>
+                      <th className="py-3 px-3 text-right">Yapılan Ödeme</th>
+                      <th className="py-3 px-3 text-right bg-emerald-50 text-emerald-900">Kalan Net Ödenecek</th>
+                      <th className="py-3 px-3 text-right">Kümülatif Toplam Borç</th>
+                      <th className="py-3 px-3 text-center">İşlemler</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {filteredWeeklyEmployees.length === 0 ? (
+                      <tr>
+                        <td colSpan="10" className="py-8 text-center text-slate-400 font-semibold">
+                          Seçilen dönemde veya arama kriterinde personel kaydı bulunamadı.
+                        </td>
+                      </tr>
+                    ) : (
+                      filteredWeeklyEmployees.map((emp, idx) => (
+                        <tr key={emp.id} className="hover:bg-slate-50/80">
+                          <td className="py-3 px-3 text-slate-400 font-bold">{idx + 1}</td>
+                          <td className="py-3 px-3">
+                            <div className="font-bold text-slate-900">{emp.name}</div>
+                            <div className="text-[10px] text-slate-400">{emp.role}</div>
+                          </td>
+                          <td className="py-3 px-2 text-right font-bold text-blue-700">
+                            {emp.weekly_hours} Saat
+                          </td>
+                          <td className="py-3 px-3 text-right text-slate-600 font-medium">
+                            {emp.accrual_type === 'SAATLIK' ? `${emp.hourly_rate} TL / sa` : `${emp.daily_rate} TL / gün`}
+                          </td>
+                          <td className="py-3 px-3 text-right font-black text-slate-900">
+                            {formatCurrency(emp.weekly_accrual)}
+                          </td>
+                          <td className="py-3 px-3 text-right font-bold text-amber-700">
+                            {emp.weekly_advances > 0 ? `-${formatCurrency(emp.weekly_advances)}` : '-'}
+                          </td>
+                          <td className="py-3 px-3 text-right font-semibold text-blue-700">
+                            {emp.weekly_paid > 0 ? formatCurrency(emp.weekly_paid) : '-'}
+                          </td>
+                          <td className="py-3 px-3 text-right font-black text-sm bg-emerald-50 text-emerald-800">
+                            {formatCurrency(emp.pazar_remaining)}
+                          </td>
+                          <td className="py-3 px-3 text-right font-bold text-slate-700">
+                            {formatCurrency(emp.overall_debt)}
+                          </td>
+                          <td className="py-3 px-3 text-center">
+                            <div className="flex items-center justify-center space-x-1.5">
+                              <button
+                                onClick={() => handleOpenAdvanceModal(emp)}
+                                className="px-2 py-1 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-[11px] font-bold transition-all shadow-2xs cursor-pointer"
+                                title="Personele Avans Ver"
+                              >
+                                Avans
+                              </button>
+                              <button
+                                onClick={() => handleOpenPazarPaymentModal(emp)}
+                                className="px-2 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[11px] font-bold transition-all shadow-2xs cursor-pointer"
+                                title="Pazar Hakedişini Öde"
+                              >
+                                Öde
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                  <tfoot className="bg-slate-900 text-white font-black text-xs">
+                    <tr>
+                      <td colSpan="2" className="py-3 px-3">
+                        GENEL TOPLAM ({filteredWeeklyEmployees.length} Personel)
+                      </td>
+                      <td className="py-3 px-2 text-right text-blue-300">
+                        {Math.round(sumFilteredHours * 100) / 100} Saat
+                      </td>
+                      <td className="py-3 px-3 text-right text-slate-400">-</td>
+                      <td className="py-3 px-3 text-right text-emerald-300">
+                        {formatCurrency(sumFilteredAccrual)}
+                      </td>
+                      <td className="py-3 px-3 text-right text-amber-300">
+                        {sumFilteredAdvances > 0 ? `-${formatCurrency(sumFilteredAdvances)}` : '0 TL'}
+                      </td>
+                      <td className="py-3 px-3 text-right text-blue-300">
+                        {formatCurrency(sumFilteredPaid)}
+                      </td>
+                      <td className="py-3 px-3 text-right bg-emerald-800 text-white text-sm">
+                        {formatCurrency(sumFilteredRemaining)}
+                      </td>
+                      <td className="py-3 px-3 text-right text-slate-300">-</td>
+                      <td></td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* ========================================================= */}
       {/* TAB 3: AYLIK 1-31 PDKS ÇİZELGESİ (Standart Excel Formatı) */}

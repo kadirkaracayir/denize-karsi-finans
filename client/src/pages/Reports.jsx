@@ -40,15 +40,16 @@ export default function Reports() {
     if (activeTab === 'daily') {
       fetchPromise = api.get('/reports/daily', { date: targetDate });
     } else if (activeTab === 'weekly') {
-      const d = new Date(targetDate);
-      const day = d.getDay();
-      const diff = d.getDate() - day + (day === 0 ? -6 : 1);
-      const monday = new Date(d.setDate(diff));
-      const sunday = new Date(monday);
-      sunday.setDate(sunday.getDate() + 6);
+      const [y, m, dayNum] = targetDate.split('-').map(Number);
+      const curr = new Date(y, m - 1, dayNum);
+      const day = curr.getDay();
+      const diff = curr.getDate() - (day === 0 ? 6 : day - 1);
+      const monday = new Date(y, m - 1, diff);
+      const sunday = new Date(y, m - 1, diff + 6);
 
-      const sStr = monday.toISOString().split('T')[0];
-      const eStr = sunday.toISOString().split('T')[0];
+      const fmt = (dt) => `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
+      const sStr = fmt(monday);
+      const eStr = fmt(sunday);
       fetchPromise = api.get('/reports/weekly', { startDate: sStr, endDate: eStr });
     } else if (activeTab === 'monthly') {
       fetchPromise = api.get('/reports/monthly', { year: targetYear, month: targetMonth });

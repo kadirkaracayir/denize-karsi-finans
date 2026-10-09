@@ -83,9 +83,11 @@ export function getFinancialSummary(startDate, endDate) {
   const employeeAccruals = { DK: 0, PALM: 0, ORTAK: 0 };
   for (const a of accruals) {
     if (a.business_id === 'DK') employeeAccruals.DK += a.total_accrual;
-    if (a.business_id === 'PALM') employeeAccruals.PALM += a.total_accrual;
+    else if (a.business_id === 'PALM') employeeAccruals.PALM += a.total_accrual;
+    else if (a.business_id === 'ORTAK') employeeAccruals.ORTAK += a.total_accrual;
   }
-  employeeAccruals.ORTAK = employeeAccruals.DK + employeeAccruals.PALM;
+  // ORTAK total includes all business accruals if consolidated
+  employeeAccruals.ORTAK = employeeAccruals.ORTAK + employeeAccruals.DK + employeeAccruals.PALM;
 
   // Employee Payments in period
   const payments = db.prepare(`
