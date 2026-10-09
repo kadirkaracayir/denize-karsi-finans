@@ -1,0 +1,12 @@
+node_modules/
+client/node_modules/
+.env
+*.log
+
+# SQLite WAL and lock files
+data/*.db-wal
+data/*.db-shm
+
+# OS generated files
+.DS_Store
+Thumbs.db

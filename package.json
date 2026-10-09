@@ -1,0 +1,24 @@
+{
+  "name": "denize-karsi-finans",
+  "version": "1.0.0",
+  "description": "Denize Karşı & Palm Beach - Finans, Kasa ve Personel Yönetim Sistemi",
+  "main": "server/index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node server/index.js",
+    "build": "npm --prefix client run build",
+    "dev:server": "node --watch server/index.js",
+    "build:client": "npm --prefix client run build",
+    "dev:client": "npm --prefix client run dev"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "jsonwebtoken": "^9.0.2",
+    "multer": "^1.4.5-lts.1",
+    "sharp": "^0.35.5",
+    "xlsx": "^0.18.5"
+  }
+}
