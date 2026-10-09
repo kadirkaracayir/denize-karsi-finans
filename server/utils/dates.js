@@ -1,6 +1,5 @@
 export function resolveDateRange(period = 'bugun', customStart = null, customEnd = null) {
-  // Use 2026-10-08 as current anchor (or system now)
-  const now = new Date(2026, 9, 8); // Oct 8, 2026
+  const now = new Date();
 
   const formatDate = (d) => {
     const year = d.getFullYear();
@@ -11,8 +10,13 @@ export function resolveDateRange(period = 'bugun', customStart = null, customEnd
 
   const todayStr = formatDate(now);
 
+  // If specific date range is provided, use it
+  if (customStart && customEnd && (period === 'ozel' || period === 'custom')) {
+    return { startDate: customStart, endDate: customEnd, label: 'Özel Tarih' };
+  }
+
   if (period === 'bugun') {
-    return { startDate: todayStr, endDate: todayStr, label: 'Bugün' };
+    return { startDate: customStart || todayStr, endDate: customEnd || todayStr, label: 'Bugün' };
   }
 
   if (period === 'dun') {

@@ -10,7 +10,7 @@ const router = express.Router();
 // Get status and closing summary for a specific day
 router.get('/status', authenticateToken, (req, res) => {
   try {
-    const targetDate = req.query.date || '2026-10-08';
+    const targetDate = req.query.date || new Date().toISOString().split('T')[0];
 
     const closing = db.prepare(`
       SELECT c.*, u.full_name as closed_by_name

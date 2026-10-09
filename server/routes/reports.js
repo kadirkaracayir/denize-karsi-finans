@@ -135,7 +135,7 @@ function getExpensesReport(startDate, endDate) {
 // 1. Günlük Rapor
 router.get('/daily', authenticateToken, (req, res) => {
   try {
-    const targetDate = req.query.date || '2026-10-08';
+    const targetDate = req.query.date || new Date().toISOString().split('T')[0];
     const summary = getFinancialSummary(targetDate, targetDate);
 
     // Günlük Satış Kırılımı (İşletme ve Ödeme Tipi Bazında)

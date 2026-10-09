@@ -10,7 +10,7 @@ const router = express.Router();
 // Cash & Card Summary
 router.get('/summary', authenticateToken, (req, res) => {
   try {
-    const today = req.query.date || '2026-10-08';
+    const today = req.query.date || new Date().toISOString().split('T')[0];
     const summary = getFinancialSummary(today, today);
     return res.json({ success: true, summary: summary.finansOzeti });
   } catch (err) {
@@ -22,7 +22,7 @@ router.get('/summary', authenticateToken, (req, res) => {
 // POS Card Settlement: Manuel Komisyon Oranı ve Gün Sonu Oran Farkı Yönetimi
 router.get('/pos-settlement', authenticateToken, (req, res) => {
   try {
-    const targetDate = req.query.date || '2026-10-08';
+    const targetDate = req.query.date || new Date().toISOString().split('T')[0];
     const summary = getFinancialSummary(targetDate, targetDate);
 
     const history = db.prepare(`
@@ -110,7 +110,7 @@ router.post(
 // Bank Balances (manual entry and comparison vs yesterday)
 router.get('/bank-balances', authenticateToken, (req, res) => {
   try {
-    const targetDate = req.query.date || '2026-10-08';
+    const targetDate = req.query.date || new Date().toISOString().split('T')[0];
 
     // DK
     const dkCurrent = db.prepare('SELECT * FROM bank_balances WHERE business_id = ? AND date = ?').get('DK', targetDate);
