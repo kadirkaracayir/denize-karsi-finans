@@ -960,47 +960,6 @@ export default function PersonnelPuantajHub() {
       {/* ========================================================= */}
       {activeTab === 'hours' && (
         <div className="space-y-4">
-          {/* Quick Date Chips Bar */}
-          <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-xs flex flex-wrap items-center gap-2">
-            <span className="text-xs font-bold text-slate-700 flex items-center gap-1.5 mr-1">
-              <Calendar className="w-4 h-4 text-blue-600" />
-              <span>Kayıtlı Puantaj Günleri:</span>
-            </span>
-            {activeDates.map(d => {
-              const isSelected = dailyDate === d.date;
-              return (
-                <button
-                  key={d.date}
-                  type="button"
-                  onClick={() => setDailyDate(d.date)}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all flex items-center space-x-1.5 cursor-pointer ${
-                    isSelected
-                      ? 'bg-blue-600 text-white shadow-md shadow-blue-500/30 ring-2 ring-blue-400'
-                      : 'bg-slate-50 hover:bg-blue-50 text-slate-700 border border-slate-200'
-                  }`}
-                >
-                  <Clock className="w-3.5 h-3.5" />
-                  <span>{formatDateTR(d.date)}</span>
-                  <span className={`px-1.5 py-0.5 rounded-md text-[10px] font-bold ${
-                    isSelected ? 'bg-blue-800 text-white' : 'bg-slate-200 text-slate-700'
-                  }`}>
-                    {d.worked_count} Kişi
-                  </span>
-                </button>
-              );
-            })}
-            <button
-              type="button"
-              onClick={() => setDailyDate(new Date().toISOString().split('T')[0])}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center space-x-1 cursor-pointer ml-auto ${
-                dailyDate === new Date().toISOString().split('T')[0]
-                  ? 'bg-emerald-600 text-white ring-2 ring-emerald-400'
-                  : 'bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-200'
-              }`}
-            >
-              <span>Bugün ({formatDateTR(new Date().toISOString().split('T')[0])})</span>
-            </button>
-          </div>
 
           {/* Date Picker Bar */}
           <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
