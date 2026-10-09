@@ -5,7 +5,7 @@ export const JWT_SECRET = process.env.JWT_SECRET || 'denize_karsi_finans_secret_
 
 export function authenticateToken(req, res, next) {
   const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
+  const token = (authHeader && authHeader.split(' ')[1]) || req.query.token;
 
   if (!token) {
     return res.status(401).json({ success: false, message: 'Oturum açmanız gerekiyor (Token bulunamadı).' });

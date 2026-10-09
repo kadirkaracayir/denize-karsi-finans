@@ -986,10 +986,192 @@ router.post(
   }
 );
 
-// Export Monthly Puantaj to Excel (XLSX)
+// Export Puantaj to Excel (XLSX) - Supports Monthly and Date Range (2 Tarih Arası)
 router.get('/attendance/export-excel', authenticateToken, (req, res) => {
   try {
     const today = new Date();
+    const { startDate, endDate, period } = req.query;
+
+    // Check if Date Range or All Periods is requested
+    const minMax = db.prepare('SELECT MIN(date) as min_date, MAX(date) as max_date FROM attendance').get();
+    let sDate = startDate;
+    let eDate = endDate;
+
+    if (period === 'all') {
+      sDate = minMax?.min_date || '2026-09-05';
+      eDate = minMax?.max_date || '2026-09-08';
+    }
+
+    const isDateRange = Boolean(sDate && eDate);
+
+    if (isDateRange) {
+      // 1. DATE RANGE EXCEL EXPORT (2 Tarih Arası Puantaj & Hakediş Dökümü)
+      const employees = db.prepare('SELECT * FROM employees WHERE is_active = 1 ORDER BY name ASC').all();
+      const attStmt = db.prepare(`
+        SELECT * FROM attendance
+        WHERE employee_id = ? AND date >= ? AND date <= ?
+        ORDER BY date ASC
+      `);
+
+      const advStmt = db.prepare(`
+        SELECT COALESCE(SUM(amount), 0) as s
+        FROM employee_payments
+        WHERE employee_id = ? AND date >= ? AND date <= ? AND is_cancelled = 0
+          AND (period_info LIKE '%Avans%' OR description LIKE '%Avans%' OR description LIKE '%avans%')
+      `);
+
+      const payStmt = db.prepare(`
+        SELECT COALESCE(SUM(amount), 0) as s
+        FROM employee_payments
+        WHERE employee_id = ? AND date >= ? AND date <= ? AND is_cancelled = 0
+      `);
+
+      const cumStmt = db.prepare(`
+        SELECT 
+          COALESCE((SELECT SUM(accrual_amount) FROM attendance WHERE employee_id = ?), 0) as total_accrued,
+          COALESCE((SELECT SUM(amount) FROM employee_payments WHERE employee_id = ? AND is_cancelled = 0), 0) as total_paid
+      `);
+
+      const rows = [
+        ['DENİZE KARŞI & PALM BEACH - 2 TARİH ARASI PERSONEL PUANTAJ VE HAKEDİŞ DÖKÜMÜ'],
+        [`Dönem: ${sDate} — ${eDate}  |  Rapor Alınma Tarihi: ${new Date().toLocaleDateString('tr-TR')} ${new Date().toLocaleTimeString('tr-TR')}`],
+        [],
+        [
+          'No',
+          'Personel Adı',
+          'İşletme',
+          'Görevi',
+          'Saatlik Ücret (TL)',
+          'Dönem Çalışılan Saat',
+          'Toplam Hakediş (TL)',
+          'Alınan Avans (TL)',
+          'Yapılan Ödeme (TL)',
+          'Ödememiz Gereken Net Tutar (TL)',
+          'Kümülatif Toplam Borç (TL)'
+        ]
+      ];
+
+      let sumHours = 0;
+      let sumAccrual = 0;
+      let sumAdvances = 0;
+      let sumPaid = 0;
+      let sumRemaining = 0;
+      let sumDebt = 0;
+
+      employees.forEach((emp, idx) => {
+        const records = attStmt.all(emp.id, sDate, eDate);
+        let empHours = 0;
+        let empAccrual = 0;
+        records.forEach(r => {
+          empHours += r.hours_worked || 0;
+          empAccrual += r.accrual_amount || 0;
+        });
+
+        const empAdv = advStmt.get(emp.id, sDate, eDate).s;
+        const empPaid = payStmt.get(emp.id, sDate, eDate).s;
+        const cum = cumStmt.get(emp.id, emp.id);
+        const overallDebt = Math.max(0, cum.total_accrued - cum.total_paid);
+        const pazarRemaining = Math.max(0, empAccrual - empPaid);
+
+        sumHours += empHours;
+        sumAccrual += empAccrual;
+        sumAdvances += empAdv;
+        sumPaid += empPaid;
+        sumRemaining += pazarRemaining;
+        sumDebt += overallDebt;
+
+        rows.push([
+          idx + 1,
+          emp.name,
+          emp.business_id,
+          emp.role || 'Ortak Personel',
+          emp.hourly_rate,
+          Math.round(empHours * 100) / 100,
+          Math.round(empAccrual * 100) / 100,
+          empAdv,
+          empPaid,
+          Math.round(pazarRemaining * 100) / 100,
+          Math.round(overallDebt * 100) / 100
+        ]);
+      });
+
+      rows.push([]);
+      rows.push([
+        'GENEL TOPLAM',
+        '',
+        '',
+        '',
+        '',
+        Math.round(sumHours * 100) / 100,
+        Math.round(sumAccrual * 100) / 100,
+        Math.round(sumAdvances * 100) / 100,
+        Math.round(sumPaid * 100) / 100,
+        Math.round(sumRemaining * 100) / 100,
+        Math.round(sumDebt * 100) / 100
+      ]);
+
+      // Sheet 2: Günlük Giriş/Çıkış Saatleri Detayı
+      const distinctDates = db.prepare(`
+        SELECT DISTINCT date FROM attendance
+        WHERE date >= ? AND date <= ?
+        ORDER BY date ASC
+      `).all(sDate, eDate).map(d => d.date);
+
+      const detailRows = [
+        ['DENİZE KARŞI & PALM BEACH - GÜNLÜK ÇALIŞMA SAATLERİ (GİRİŞ - ÇIKIŞ) DETAYI'],
+        [`Dönem: ${sDate} — ${eDate}`],
+        []
+      ];
+
+      const detHeader = ['No', 'Personel Adı', 'Görevi'];
+      distinctDates.forEach(dt => {
+        detHeader.push(`${dt} (Giriş)`);
+        detHeader.push(`${dt} (Çıkış)`);
+        detHeader.push(`${dt} (Saat)`);
+      });
+      detHeader.push('Toplam Saat', 'Toplam Hakediş (TL)');
+      detailRows.push(detHeader);
+
+      employees.forEach((emp, idx) => {
+        const empRecords = attStmt.all(emp.id, sDate, eDate);
+        const map = new Map();
+        let totalH = 0;
+        let totalA = 0;
+        empRecords.forEach(r => {
+          map.set(r.date, r);
+          totalH += r.hours_worked || 0;
+          totalA += r.accrual_amount || 0;
+        });
+
+        const row = [idx + 1, emp.name, emp.role || 'Ortak Personel'];
+        distinctDates.forEach(dt => {
+          const r = map.get(dt);
+          if (r) {
+            row.push(r.check_in_time || '-');
+            row.push(r.check_out_time || '-');
+            row.push(r.hours_worked || 0);
+          } else {
+            row.push('-', '-', 0);
+          }
+        });
+        row.push(Math.round(totalH * 100) / 100, Math.round(totalA * 100) / 100);
+        detailRows.push(row);
+      });
+
+      const wb = XLSX.utils.book_new();
+      const wsSummary = XLSX.utils.aoa_to_sheet(rows);
+      XLSX.utils.book_append_sheet(wb, wsSummary, 'Puantaj_ve_Hakedis');
+
+      const wsDetail = XLSX.utils.aoa_to_sheet(detailRows);
+      XLSX.utils.book_append_sheet(wb, wsDetail, 'Giris_Cikis_Detayi');
+
+      const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      res.setHeader('Content-Disposition', `attachment; filename="Puantaj_${sDate}_${eDate}.xlsx"`);
+      return res.send(buffer);
+    }
+
+    // 2. MONTHLY MATRIX EXPORT (Aylık 1-31 PDKS Çizelgesi)
     const year = parseInt(req.query.year || today.getFullYear(), 10);
     const month = parseInt(req.query.month || (today.getMonth() + 1), 10);
 

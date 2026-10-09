@@ -64,7 +64,7 @@ export default function PersonnelPuantajHub() {
   // Active Tab: 'hours' (🕒 Günlük Saat Girişi & Düzenleme) | 'matrix' (📅 Aylık 1-31 PDKS) | 'weekly' (💵 Haftalık Pazar Ödeme)
   const [activeTab, setActiveTab] = useState('hours');
 
-  const defaultDate = customEndDate || '2026-09-08';
+  const defaultDate = '2026-09-08';
   const initialYear = 2026;
   const initialMonth = 9;
 
@@ -84,8 +84,8 @@ export default function PersonnelPuantajHub() {
   const [dailyAttendance, setDailyAttendance] = useState([]);
   const [weeklySummary, setWeeklySummary] = useState(null);
   const [weeklyPeriodMode, setWeeklyPeriodMode] = useState('all'); // 'all' | 'week' | 'custom'
-  const [weeklyCustomStartDate, setWeeklyCustomStartDate] = useState('');
-  const [weeklyCustomEndDate, setWeeklyCustomEndDate] = useState('');
+  const [weeklyCustomStartDate, setWeeklyCustomStartDate] = useState('2026-09-05');
+  const [weeklyCustomEndDate, setWeeklyCustomEndDate] = useState('2026-09-08');
   const [weeklySearchQuery, setWeeklySearchQuery] = useState('');
   const [weeklyOnlyWorking, setWeeklyOnlyWorking] = useState(false);
   const [matrixData, setMatrixData] = useState(null);
@@ -127,17 +127,17 @@ export default function PersonnelPuantajHub() {
   const loadActiveDates = useCallback(async () => {
     try {
       const res = await api.get('/employees/attendance/active-dates');
-      if (res.success && res.dates) {
+      if (res.success && res.dates && res.dates.length > 0) {
         setActiveDates(res.dates);
-        if (res.dates.length > 0 && !customEndDate) {
-          const latestActive = res.dates[0].date;
-          setDailyDate(latestActive);
+        const datesList = res.dates.map(d => d.date);
+        if (!datesList.includes(dailyDate)) {
+          setDailyDate(res.dates[0].date);
         }
       }
     } catch (err) {
       console.error('Active dates load error:', err);
     }
-  }, [customEndDate]);
+  }, [dailyDate]);
 
   // Load Excel Matrix (September 2026 - 4 Days)
   const loadExcelMatrix = useCallback(async () => {
@@ -694,10 +694,18 @@ export default function PersonnelPuantajHub() {
     setSelectedYear(y);
   };
 
-  // Excel Export
+  // Excel Export for Monthly Matrix
   const handleExportExcel = () => {
     const token = localStorage.getItem('dk_auth_token') || localStorage.getItem('token');
     window.location.href = `/api/employees/attendance/export-excel?year=${selectedYear}&month=${selectedMonth}&token=${token}`;
+  };
+
+  // Excel Export for Date Range (2 Tarih Arası Puantaj ve Ödeme Dökümü)
+  const handleExportRangeExcel = () => {
+    const token = localStorage.getItem('dk_auth_token') || localStorage.getItem('token');
+    const s = weeklyCustomStartDate || weeklySummary?.startDate || '2026-09-05';
+    const e = weeklyCustomEndDate || weeklySummary?.endDate || '2026-09-08';
+    window.location.href = `/api/employees/attendance/export-excel?startDate=${s}&endDate=${e}&token=${token}`;
   };
 
   // Create Employee
@@ -923,7 +931,7 @@ export default function PersonnelPuantajHub() {
           }`}
         >
           <Coins className="w-4 h-4" />
-          <span>💵 Haftalık & Pazar Ödeme Dökümü</span>
+          <span>📅 2 Tarih Arası Puantaj & Hakediş Dökümü</span>
         </button>
       </div>
 
@@ -1334,32 +1342,43 @@ export default function PersonnelPuantajHub() {
               </div>
 
               {/* Custom Range Picker */}
-              <div className="flex flex-wrap items-center gap-3 pt-1 text-xs">
-                <span className="font-bold text-slate-600 text-[11px]">Özel Tarih Aralığı:</span>
-                <input
-                  type="date"
-                  value={weeklyCustomStartDate || weeklySummary?.startDate || ''}
-                  onChange={(e) => setWeeklyCustomStartDate(e.target.value)}
-                  className="px-2.5 py-1 bg-white rounded-lg border border-slate-300 text-xs font-bold text-slate-800"
-                />
-                <span className="text-slate-400">—</span>
-                <input
-                  type="date"
-                  value={weeklyCustomEndDate || weeklySummary?.endDate || ''}
-                  onChange={(e) => setWeeklyCustomEndDate(e.target.value)}
-                  className="px-2.5 py-1 bg-white rounded-lg border border-slate-300 text-xs font-bold text-slate-800"
-                />
+              <div className="flex flex-wrap items-center gap-3 pt-2 text-xs">
+                <span className="font-black text-slate-800 text-xs flex items-center gap-1.5">
+                  <Calendar className="w-4 h-4 text-emerald-600" />
+                  <span>2 Tarih Arası Puantaj Seç:</span>
+                </span>
+                <div className="flex items-center space-x-1.5">
+                  <span className="text-[11px] text-slate-500 font-bold">Başlangıç:</span>
+                  <input
+                    type="date"
+                    value={weeklyCustomStartDate || '2026-09-05'}
+                    onChange={(e) => setWeeklyCustomStartDate(e.target.value)}
+                    className="px-3 py-1.5 bg-white text-slate-900 rounded-lg border border-slate-300 text-xs font-bold shadow-2xs focus:ring-2 focus:ring-emerald-500"
+                    style={{ color: '#0f172a', backgroundColor: '#ffffff' }}
+                  />
+                </div>
+                <span className="text-slate-400 font-bold">—</span>
+                <div className="flex items-center space-x-1.5">
+                  <span className="text-[11px] text-slate-500 font-bold">Bitiş:</span>
+                  <input
+                    type="date"
+                    value={weeklyCustomEndDate || '2026-09-08'}
+                    onChange={(e) => setWeeklyCustomEndDate(e.target.value)}
+                    className="px-3 py-1.5 bg-white text-slate-900 rounded-lg border border-slate-300 text-xs font-bold shadow-2xs focus:ring-2 focus:ring-emerald-500"
+                    style={{ color: '#0f172a', backgroundColor: '#ffffff' }}
+                  />
+                </div>
                 <button
                   type="button"
                   onClick={() => {
-                    if (weeklyCustomStartDate && weeklyCustomEndDate) {
-                      setWeeklyPeriodMode('custom');
-                      loadWeeklySummary({ startDate: weeklyCustomStartDate, endDate: weeklyCustomEndDate });
-                    }
+                    const s = weeklyCustomStartDate || '2026-09-05';
+                    const e = weeklyCustomEndDate || '2026-09-08';
+                    setWeeklyPeriodMode('custom');
+                    loadWeeklySummary({ startDate: s, endDate: e });
                   }}
-                  className="px-3.5 py-1 bg-slate-900 hover:bg-slate-800 text-white rounded-lg font-bold cursor-pointer"
+                  className="px-4 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg font-black cursor-pointer shadow-xs transition-colors"
                 >
-                  Filtrele
+                  📅 Puantajı Sorgula
                 </button>
               </div>
             </div>
@@ -1368,13 +1387,13 @@ export default function PersonnelPuantajHub() {
             <div className="bg-gradient-to-r from-emerald-900 via-teal-900 to-slate-900 text-white p-5 rounded-2xl shadow-lg flex flex-col md:flex-row md:items-center justify-between gap-4">
               <div>
                 <span className="text-[11px] uppercase tracking-wider font-extrabold text-emerald-300">
-                  HAFTALIK & DÖNEMSEL PERSONEL ÖDEME DÖKÜMÜ
+                  2 TARİH ARASI PERSONEL PUANTAJ & HAKEDİŞ DÖKÜMÜ
                 </span>
                 <h2 className="text-lg font-black text-white mt-1">
-                  {weeklySummary?.periodTitle || `Dönem: ${weeklySummary?.startDate} — ${weeklySummary?.endDate}`}
+                  {weeklySummary?.periodTitle || `Dönem: ${weeklySummary?.startDate || weeklyCustomStartDate} — ${weeklySummary?.endDate || weeklyCustomEndDate}`}
                 </h2>
                 <p className="text-xs text-slate-300 mt-0.5">
-                  Genel şirket politikası: Hafta içi girilen çalışma saatleri ve alınan avanslar düşüldükten sonra kalan net tutar Pazar günleri ödenir.
+                  Seçilen iki tarih arasındaki toplam çalışma saatleri, hakedişler, verilen avanslar ve ödenmesi gereken net rakamlar.
                 </p>
               </div>
 
@@ -1392,7 +1411,7 @@ export default function PersonnelPuantajHub() {
                   <span className="text-base font-extrabold text-amber-300">-{formatCurrency(weeklySummary?.totals?.totalWeeklyAdvances || 0)}</span>
                 </div>
                 <div>
-                  <span className="text-slate-300 text-[10px] block">Kalan Net Ödeme</span>
+                  <span className="text-slate-300 text-[10px] block">Ödememiz Gereken Tutar</span>
                   <span className="text-base font-black text-white">{formatCurrency(weeklySummary?.totals?.totalPazarRemaining || 0)}</span>
                 </div>
               </div>
@@ -1407,6 +1426,7 @@ export default function PersonnelPuantajHub() {
                   onChange={(e) => setWeeklySearchQuery(e.target.value)}
                   placeholder="🔍 Personel adı veya görevi ara..."
                   className="px-3 py-1.5 bg-white rounded-xl border border-slate-300 text-xs font-bold text-slate-900 placeholder:text-slate-400 w-60 focus:ring-2 focus:ring-emerald-500"
+                  style={{ color: '#0f172a', backgroundColor: '#ffffff' }}
                 />
                 <label className="flex items-center space-x-1.5 text-xs font-bold text-slate-700 cursor-pointer select-none">
                   <input
@@ -1419,13 +1439,24 @@ export default function PersonnelPuantajHub() {
                 </label>
               </div>
 
-              <button
-                onClick={handlePrintWeeklyPDF}
-                className="px-4 py-2 rounded-xl text-xs font-bold bg-slate-900 hover:bg-slate-800 text-white shadow-xs transition-all flex items-center space-x-1.5 self-start sm:self-auto cursor-pointer"
-              >
-                <Download className="w-4 h-4 text-emerald-400" />
-                <span>📄 Haftalık & Pazar Dökümü (PDF / Yazdır)</span>
-              </button>
+              <div className="flex items-center space-x-2 self-start sm:self-auto">
+                <button
+                  onClick={handleExportRangeExcel}
+                  className="px-4 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs transition-all flex items-center space-x-1.5 cursor-pointer"
+                  title="2 Tarih Arası Puantaj ve Ödeme Dökümünü Excel (.XLSX) olarak indir"
+                >
+                  <Download className="w-4 h-4" />
+                  <span>Excel İndir (.XLSX)</span>
+                </button>
+
+                <button
+                  onClick={handlePrintWeeklyPDF}
+                  className="px-4 py-2 rounded-xl text-xs font-bold bg-slate-900 hover:bg-slate-800 text-white shadow-xs transition-all flex items-center space-x-1.5 cursor-pointer"
+                >
+                  <Download className="w-4 h-4 text-emerald-400" />
+                  <span>📄 PDF / Yazdır</span>
+                </button>
+              </div>
             </div>
 
             {/* Weekly Table */}
@@ -1441,7 +1472,7 @@ export default function PersonnelPuantajHub() {
                       <th className="py-3 px-3 text-right">Toplam Hakediş</th>
                       <th className="py-3 px-3 text-right">Alınan Avans</th>
                       <th className="py-3 px-3 text-right">Yapılan Ödeme</th>
-                      <th className="py-3 px-3 text-right bg-emerald-50 text-emerald-900">Kalan Net Ödenecek</th>
+                      <th className="py-3 px-3 text-right bg-emerald-50 text-emerald-900 font-black">Ödememiz Gereken Rakam</th>
                       <th className="py-3 px-3 text-right">Kümülatif Toplam Borç</th>
                       <th className="py-3 px-3 text-center">İşlemler</th>
                     </tr>
@@ -1742,7 +1773,8 @@ export default function PersonnelPuantajHub() {
                   value={paymentAmount}
                   onChange={(e) => setPaymentAmount(e.target.value)}
                   placeholder="0.00"
-                  className="w-full px-3 py-2 bg-slate-50 rounded-xl border border-slate-300 text-sm font-black text-slate-900 focus:ring-2 focus:ring-emerald-500"
+                  className="w-full px-3 py-2 bg-white rounded-xl border border-slate-300 text-sm font-black text-slate-900 focus:ring-2 focus:ring-emerald-500"
+                  style={{ color: '#0f172a', backgroundColor: '#ffffff' }}
                 />
               </div>
 
@@ -1754,7 +1786,8 @@ export default function PersonnelPuantajHub() {
                     required
                     value={paymentDate}
                     onChange={(e) => setPaymentDate(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-50 rounded-xl border border-slate-300 text-xs font-semibold text-slate-800"
+                    className="w-full px-3 py-2 bg-white rounded-xl border border-slate-300 text-xs font-bold text-slate-900"
+                    style={{ color: '#0f172a', backgroundColor: '#ffffff' }}
                   />
                 </div>
                 <div>
@@ -1762,7 +1795,8 @@ export default function PersonnelPuantajHub() {
                   <select
                     value={paymentSource}
                     onChange={(e) => setPaymentSource(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-50 rounded-xl border border-slate-300 text-xs font-semibold text-slate-800"
+                    className="w-full px-3 py-2 bg-white rounded-xl border border-slate-300 text-xs font-bold text-slate-900"
+                    style={{ color: '#0f172a', backgroundColor: '#ffffff' }}
                   >
                     <option value="DK_KASA">💵 DK Nakit Kasa</option>
                     <option value="PALM_KASA">💵 Palm Nakit Kasa</option>
@@ -1779,7 +1813,8 @@ export default function PersonnelPuantajHub() {
                   value={paymentDesc}
                   onChange={(e) => setPaymentDesc(e.target.value)}
                   placeholder="Örn: Elden nakit avans verildi"
-                  className="w-full px-3 py-2 bg-slate-50 rounded-xl border border-slate-300 text-xs text-slate-800"
+                  className="w-full px-3 py-2 bg-white rounded-xl border border-slate-300 text-xs font-bold text-slate-900 placeholder:text-slate-400"
+                  style={{ color: '#0f172a', backgroundColor: '#ffffff' }}
                 />
               </div>
 
@@ -1881,6 +1916,7 @@ export default function PersonnelPuantajHub() {
                     value={editingEmp.name}
                     onChange={(e) => setEditingEmp({ ...editingEmp, name: e.target.value })}
                     className="w-full px-3 py-2 bg-white rounded-xl border border-slate-300 text-xs font-bold text-slate-900 focus:ring-2 focus:ring-blue-500 focus:bg-white"
+                    style={{ color: '#0f172a', backgroundColor: '#ffffff' }}
                   />
                 </div>
 
@@ -1893,6 +1929,7 @@ export default function PersonnelPuantajHub() {
                       onChange={(e) => setEditingEmp({ ...editingEmp, phone: e.target.value })}
                       placeholder="05XX XXX XX XX"
                       className="w-full px-3 py-2 bg-white rounded-xl border border-slate-300 text-xs font-bold text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-blue-500 focus:bg-white"
+                      style={{ color: '#0f172a', backgroundColor: '#ffffff' }}
                     />
                   </div>
                   <div>
@@ -1902,6 +1939,7 @@ export default function PersonnelPuantajHub() {
                       value={editingEmp.role}
                       onChange={(e) => setEditingEmp({ ...editingEmp, role: e.target.value })}
                       className="w-full px-3 py-2 bg-white rounded-xl border border-slate-300 text-xs font-bold text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-blue-500 focus:bg-white"
+                      style={{ color: '#0f172a', backgroundColor: '#ffffff' }}
                     />
                   </div>
                 </div>
@@ -1913,6 +1951,7 @@ export default function PersonnelPuantajHub() {
                       value={editingEmp.accrual_type}
                       onChange={(e) => setEditingEmp({ ...editingEmp, accrual_type: e.target.value })}
                       className="w-full px-3 py-2 bg-white rounded-xl border border-slate-300 text-xs font-bold text-slate-900 focus:ring-2 focus:ring-blue-500 focus:bg-white"
+                      style={{ color: '#0f172a', backgroundColor: '#ffffff' }}
                     >
                       <option value="SAATLIK">Saatlik Ücret</option>
                       <option value="GUNLUK">Günlük Ücret</option>
@@ -1935,6 +1974,7 @@ export default function PersonnelPuantajHub() {
                         }
                       }}
                       className="w-full px-3 py-2 bg-white rounded-xl border border-blue-400 text-xs font-black text-slate-900 focus:ring-2 focus:ring-blue-500 focus:bg-white"
+                      style={{ color: '#0f172a', backgroundColor: '#ffffff' }}
                     />
                   </div>
                 </div>
@@ -1982,6 +2022,7 @@ export default function PersonnelPuantajHub() {
                     onChange={(e) => setNewEmp({ ...newEmp, name: e.target.value })}
                     placeholder="Örn: Mehmet Can"
                     className="w-full px-3 py-2 bg-white rounded-xl border border-slate-300 text-xs font-bold text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-blue-500 focus:bg-white"
+                    style={{ color: '#0f172a', backgroundColor: '#ffffff' }}
                   />
                 </div>
 
@@ -1994,6 +2035,7 @@ export default function PersonnelPuantajHub() {
                       onChange={(e) => setNewEmp({ ...newEmp, phone: e.target.value })}
                       placeholder="05XX XXX XX XX"
                       className="w-full px-3 py-2 bg-white rounded-xl border border-slate-300 text-xs font-bold text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-blue-500 focus:bg-white"
+                      style={{ color: '#0f172a', backgroundColor: '#ffffff' }}
                     />
                   </div>
                   <div>
@@ -2004,6 +2046,7 @@ export default function PersonnelPuantajHub() {
                       onChange={(e) => setNewEmp({ ...newEmp, role: e.target.value })}
                       placeholder="Garson, Barmen, Aşçı"
                       className="w-full px-3 py-2 bg-white rounded-xl border border-slate-300 text-xs font-bold text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-blue-500 focus:bg-white"
+                      style={{ color: '#0f172a', backgroundColor: '#ffffff' }}
                     />
                   </div>
                 </div>
@@ -2015,6 +2058,7 @@ export default function PersonnelPuantajHub() {
                       value={newEmp.accrual_type}
                       onChange={(e) => setNewEmp({ ...newEmp, accrual_type: e.target.value })}
                       className="w-full px-3 py-2 bg-white rounded-xl border border-slate-300 text-xs font-bold text-slate-900 focus:ring-2 focus:ring-blue-500 focus:bg-white"
+                      style={{ color: '#0f172a', backgroundColor: '#ffffff' }}
                     >
                       <option value="SAATLIK">Saatlik Ücret</option>
                       <option value="GUNLUK">Günlük Ücret</option>
@@ -2038,6 +2082,7 @@ export default function PersonnelPuantajHub() {
                       }}
                       placeholder="0"
                       className="w-full px-3 py-2 bg-white rounded-xl border border-blue-400 text-xs font-black text-slate-900 focus:ring-2 focus:ring-blue-500 focus:bg-white"
+                      style={{ color: '#0f172a', backgroundColor: '#ffffff' }}
                     />
                   </div>
                 </div>

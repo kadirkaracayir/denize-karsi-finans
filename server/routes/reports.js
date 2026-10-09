@@ -1,4 +1,5 @@
 import express from 'express';
+import XLSX from 'xlsx';
 import db from '../db/database.js';
 import { authenticateToken } from '../middleware/auth.js';
 import { getFinancialSummary } from '../utils/finance.js';
@@ -390,6 +391,200 @@ router.get('/yearly', authenticateToken, (req, res) => {
   } catch (err) {
     console.error('Yearly report error:', err);
     return res.status(500).json({ success: false, message: 'Yıllık rapor oluşturulamadı.' });
+  }
+});
+
+// 5. Özel Tarih Aralığı Raporu (2 Tarih Arası)
+router.get('/custom', authenticateToken, (req, res) => {
+  try {
+    const { startDate, endDate } = req.query;
+    if (!startDate || !endDate) {
+      return res.status(400).json({ success: false, message: 'Başlangıç ve bitiş tarihi gereklidir.' });
+    }
+
+    const summary = getFinancialSummary(startDate, endDate);
+
+    // Günlük Dağılım
+    const dailyBreakdown = db.prepare(`
+      SELECT 
+        s.date,
+        s.business_id,
+        SUM(CASE WHEN s.payment_type = 'NAKIT' THEN s.amount ELSE 0 END) as nakit,
+        SUM(CASE WHEN s.payment_type = 'KART' THEN s.amount ELSE 0 END) as kart,
+        SUM(s.amount) as total
+      FROM sales s
+      WHERE s.date >= ? AND s.date <= ? AND s.is_cancelled = 0
+      GROUP BY s.date, s.business_id
+      ORDER BY s.date ASC
+    `).all(startDate, endDate);
+
+    const salesByBusinessAndType = db.prepare(`
+      SELECT 
+        s.business_id,
+        s.payment_type,
+        SUM(s.amount) as total
+      FROM sales s
+      WHERE s.date >= ? AND s.date <= ? AND s.is_cancelled = 0
+      GROUP BY s.business_id, s.payment_type
+    `).all(startDate, endDate);
+
+    const personnelReport = getPersonnelReport(startDate, endDate);
+    const expensesReport = getExpensesReport(startDate, endDate);
+
+    return res.json({
+      success: true,
+      startDate,
+      endDate,
+      summary,
+      dailyBreakdown,
+      salesByBusinessAndType,
+      categories: [],
+      personnelReport,
+      expensesReport
+    });
+  } catch (err) {
+    console.error('Custom report error:', err);
+    return res.status(500).json({ success: false, message: 'Özel aralık raporu oluşturulamadı: ' + err.message });
+  }
+});
+
+// 6. Finans & Personel Raporlarını Excel'e Aktar (XLSX)
+router.get('/export-excel', authenticateToken, (req, res) => {
+  try {
+    const { type = 'custom', date, startDate, endDate, year, month } = req.query;
+    let sDate = startDate;
+    let eDate = endDate;
+
+    if (type === 'daily') {
+      sDate = date || new Date().toISOString().split('T')[0];
+      eDate = sDate;
+    } else if (type === 'monthly') {
+      const y = year || '2026';
+      const m = String(month || '09').padStart(2, '0');
+      sDate = `${y}-${m}-01`;
+      const lastDay = new Date(Number(y), Number(m), 0).getDate();
+      eDate = `${y}-${m}-${String(lastDay).padStart(2, '0')}`;
+    } else if (type === 'yearly') {
+      const y = year || '2026';
+      sDate = `${y}-01-01`;
+      eDate = `${y}-12-31`;
+    }
+
+    if (!sDate || !eDate) {
+      sDate = '2026-09-05';
+      eDate = '2026-09-08';
+    }
+
+    const summary = getFinancialSummary(sDate, eDate);
+    const personnel = getPersonnelReport(sDate, eDate);
+    const expenses = getExpensesReport(sDate, eDate);
+
+    const wb = XLSX.utils.book_new();
+
+    // 1. FİNANSAL ÖZET SAYFASI
+    const sumRows = [
+      ['DENİZE KARŞI & PALM BEACH - FİNANSAL FAALİYET RAPORU'],
+      [`Dönem: ${sDate} — ${eDate}`],
+      [`Rapor Alınma Tarihi: ${new Date().toLocaleDateString('tr-TR')} ${new Date().toLocaleTimeString('tr-TR')}`],
+      [],
+      ['GELİR KALEMLERİ', 'TUTAR (TL)'],
+      ['Denize Karşı Satışları', summary.sales.DK.total],
+      ['Palm Beach Satışları', summary.sales.PALM.total],
+      ['Toplam Nakit Satış', summary.sales.ORTAK.nakit],
+      ['Toplam Kredi Kartı Satış', summary.sales.ORTAK.kart],
+      ['TOPLAM GELİR', summary.sales.ORTAK.total],
+      [],
+      ['GİDER VE YÜKÜMLÜLÜKLER', 'TUTAR (TL)'],
+      ['DK İşletme Giderleri', summary.expenses.DK],
+      ['Palm İşletme Giderleri', summary.expenses.PALM],
+      ['Toplam İşletme Gideri', summary.expenses.TOTAL],
+      ['Personel Çalışma Hakedişi', summary.employeeAccruals.ORTAK],
+      ['Personele Fiilen Ödenen (Avans Dahil)', personnel.totals.total_paid],
+      ['TOPLAM MALİYET (Gider + Hakediş)', summary.expenses.TOTAL + summary.employeeAccruals.ORTAK],
+      [],
+      ['FAALİYET SONUCU', 'TUTAR (TL)'],
+      ['Net Faaliyet Karı / Zararı', summary.sales.ORTAK.total - (summary.expenses.TOTAL + summary.employeeAccruals.ORTAK)],
+      ['Personele Kalan Toplam Borç Bakiyesi', personnel.totals.total_balance]
+    ];
+    const wsSum = XLSX.utils.aoa_to_sheet(sumRows);
+    XLSX.utils.book_append_sheet(wb, wsSum, 'Finansal_Ozet');
+
+    // 2. PERSONEL VE AVANS SAYFASI
+    const pRows = [
+      ['DENİZE KARŞI & PALM BEACH - PERSONEL HAKEDİŞ, SAAT, AVANS VE ÖDEME DÖKÜMÜ'],
+      [`Dönem: ${sDate} — ${eDate}`],
+      [],
+      [
+        'No', 
+        'Personel Adı', 
+        'Görevi', 
+        'Saatlik Ücret (TL)', 
+        'Toplam Çalışılan Saat', 
+        'Çalışılan Gün Sayısı', 
+        'Dönem Hakedişi (TL)', 
+        'Alınan Avans (TL)', 
+        'Yapılan Ödeme (TL)', 
+        'Dönem Kalanı (TL)', 
+        'Kümülatif Toplam Borç (TL)'
+      ]
+    ];
+
+    personnel.employees.forEach((emp, idx) => {
+      pRows.push([
+        idx + 1,
+        emp.name,
+        emp.role || 'Ortak Personel',
+        emp.hourly_rate,
+        emp.total_hours,
+        emp.days_worked,
+        emp.total_accrual,
+        emp.total_advance,
+        emp.total_paid,
+        emp.net_period_balance,
+        emp.current_balance
+      ]);
+    });
+
+    pRows.push([]);
+    pRows.push([
+      'GENEL TOPLAM', 
+      '', 
+      '', 
+      '', 
+      personnel.totals.total_hours, 
+      '', 
+      personnel.totals.total_accrual, 
+      personnel.totals.total_advance, 
+      personnel.totals.total_paid, 
+      '', 
+      personnel.totals.total_balance
+    ]);
+
+    const wsP = XLSX.utils.aoa_to_sheet(pRows);
+    XLSX.utils.book_append_sheet(wb, wsP, 'Personel_ve_Avans');
+
+    // 3. GİDERLER SAYFASI
+    const expRows = [
+      ['GİDER KATEGORİLERİ VE HARCAMA DETAYLARI'],
+      [`Dönem: ${sDate} — ${eDate}`],
+      [],
+      ['Kategori', 'Harcama Adedi', 'Tutar (TL)']
+    ];
+    expenses.byCategory.forEach(c => {
+      expRows.push([c.category_name, c.count, c.total_amount]);
+    });
+    expRows.push(['TOPLAM İŞLETME GİDERİ', '', expenses.totalExpense]);
+
+    const wsExp = XLSX.utils.aoa_to_sheet(expRows);
+    XLSX.utils.book_append_sheet(wb, wsExp, 'Giderler');
+
+    const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="Finans_Raporu_${sDate}_${eDate}.xlsx"`);
+    return res.send(buffer);
+  } catch (err) {
+    console.error('Report excel export error:', err);
+    return res.status(500).json({ success: false, message: 'Rapor Excel dosyası oluşturulamadı: ' + err.message });
   }
 });
 

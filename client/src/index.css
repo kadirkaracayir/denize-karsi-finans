@@ -30,3 +30,16 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: #94a3b8;
 }
+
+/* Ensure all inputs and selects are always high-contrast dark text and never white */
+input, select, textarea {
+  color: #0f172a !important;
+}
+
+input[type="date"], input[type="text"], input[type="number"], input[type="time"], input[type="email"], input[type="password"], select {
+  color: #0f172a !important;
+}
+
+input::placeholder, textarea::placeholder {
+  color: #94a3b8 !important;
+}

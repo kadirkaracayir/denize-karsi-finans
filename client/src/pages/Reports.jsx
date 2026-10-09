@@ -23,12 +23,14 @@ import { api } from '../services/api';
 import { formatCurrency, formatCurrencyShort, formatDateTR } from '../utils/formatters';
 
 export default function Reports() {
-  const [activeTab, setActiveTab] = useState('daily'); // 'daily', 'weekly', 'monthly', 'yearly'
-  const [viewScope, setViewScope] = useState('all'); // 'all' (Gelir & Gider), 'income' (Sadece Gelir), 'expenses' (Sadece Gider), 'personnel' (Personel & Avans)
+  const [activeTab, setActiveTab] = useState('custom'); // 'custom', 'daily', 'weekly', 'monthly', 'yearly'
+  const [viewScope, setViewScope] = useState('personnel'); // 'all' (Gelir & Gider), 'income' (Sadece Gelir), 'expenses' (Sadece Gider), 'personnel' (Personel & Avans)
   
-  const [targetDate, setTargetDate] = useState('2026-10-08');
-  const [targetMonth, setTargetMonth] = useState('10');
+  const [targetDate, setTargetDate] = useState('2026-09-08');
+  const [targetMonth, setTargetMonth] = useState('09');
   const [targetYear, setTargetYear] = useState('2026');
+  const [customStartDate, setCustomStartDate] = useState('2026-09-05');
+  const [customEndDate, setCustomEndDate] = useState('2026-09-08');
 
   const [reportData, setReportData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -37,7 +39,9 @@ export default function Reports() {
     setLoading(true);
     let fetchPromise;
 
-    if (activeTab === 'daily') {
+    if (activeTab === 'custom') {
+      fetchPromise = api.get('/reports/custom', { startDate: customStartDate, endDate: customEndDate });
+    } else if (activeTab === 'daily') {
       fetchPromise = api.get('/reports/daily', { date: targetDate });
     } else if (activeTab === 'weekly') {
       const [y, m, dayNum] = targetDate.split('-').map(Number);
@@ -63,7 +67,25 @@ export default function Reports() {
         .catch(console.error)
         .finally(() => setLoading(false));
     }
-  }, [activeTab, targetDate, targetMonth, targetYear]);
+  }, [activeTab, targetDate, targetMonth, targetYear, customStartDate, customEndDate]);
+
+  // Excel Export Handler
+  const handleExportExcel = () => {
+    const token = localStorage.getItem('dk_auth_token') || localStorage.getItem('token');
+    let url = `/api/reports/export-excel?token=${token}&type=${activeTab}`;
+    if (activeTab === 'custom') {
+      url += `&startDate=${customStartDate}&endDate=${customEndDate}`;
+    } else if (activeTab === 'daily') {
+      url += `&date=${targetDate}`;
+    } else if (activeTab === 'weekly') {
+      url += `&startDate=${reportData?.startDate || '2026-09-05'}&endDate=${reportData?.endDate || '2026-09-08'}`;
+    } else if (activeTab === 'monthly') {
+      url += `&year=${targetYear}&month=${targetMonth}`;
+    } else if (activeTab === 'yearly') {
+      url += `&year=${targetYear}`;
+    }
+    window.location.href = url;
+  };
 
   // Helpers
   const summary = reportData?.summary?.donemOzet || reportData?.summary?.gunlukOzet || reportData?.totals;
@@ -92,8 +114,9 @@ export default function Reports() {
         </div>
 
         {/* Period Switcher */}
-        <div className="inline-flex bg-slate-100 p-1 rounded-xl">
+        <div className="inline-flex bg-slate-100 p-1 rounded-xl flex-wrap gap-1">
           {[
+            { id: 'custom', label: '📅 2 Tarih Arası (Özel Aralık)' },
             { id: 'daily', label: 'Günlük' },
             { id: 'weekly', label: 'Haftalık' },
             { id: 'monthly', label: 'Aylık' },
@@ -102,8 +125,8 @@ export default function Reports() {
             <button
               key={p.id}
               onClick={() => setActiveTab(p.id)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                activeTab === p.id ? 'bg-white shadow-xs text-blue-700' : 'text-slate-600 hover:text-slate-900'
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                activeTab === p.id ? 'bg-white shadow-xs text-blue-700 font-black' : 'text-slate-600 hover:text-slate-900'
               }`}
             >
               {p.label}
@@ -112,30 +135,79 @@ export default function Reports() {
         </div>
       </div>
 
-      {/* 2. Filter Bar: Period Selector & Print Button */}
+      {/* 2. Filter Bar: Period Selector, Quick Presets & Export Buttons */}
       <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
         <div className="flex items-center space-x-3 flex-wrap gap-y-2">
-          <Calendar className="w-4 h-4 text-slate-400" />
-          <span className="font-semibold text-slate-700">Rapor Tarihi:</span>
+          <Calendar className="w-4 h-4 text-blue-600 shrink-0" />
+          <span className="font-bold text-slate-900">Rapor Dönemi:</span>
 
-          {activeTab === 'daily' && (
-            <input
-              type="date"
-              value={targetDate}
-              onChange={(e) => setTargetDate(e.target.value)}
-              className="px-3 py-1 border border-slate-300 rounded-lg text-xs font-bold"
-            />
+          {activeTab === 'custom' && (
+            <div className="flex items-center space-x-2 flex-wrap gap-y-2">
+              <input
+                type="date"
+                value={customStartDate}
+                onChange={(e) => setCustomStartDate(e.target.value)}
+                className="px-3 py-1.5 bg-white text-slate-900 border border-slate-300 rounded-lg text-xs font-bold shadow-2xs focus:ring-2 focus:ring-blue-500"
+                style={{ color: '#0f172a', backgroundColor: '#ffffff' }}
+              />
+              <span className="text-slate-500 font-bold">—</span>
+              <input
+                type="date"
+                value={customEndDate}
+                onChange={(e) => setCustomEndDate(e.target.value)}
+                className="px-3 py-1.5 bg-white text-slate-900 border border-slate-300 rounded-lg text-xs font-bold shadow-2xs focus:ring-2 focus:ring-blue-500"
+                style={{ color: '#0f172a', backgroundColor: '#ffffff' }}
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  setCustomStartDate('2026-09-05');
+                  setCustomEndDate('2026-09-08');
+                }}
+                className="px-2.5 py-1 bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300 rounded-lg text-xs font-bold cursor-pointer transition-colors"
+                title="Girilmiş olan Eylül puantaj dönemini seç"
+              >
+                🌟 05-08 Eylül Puantajı
+              </button>
+            </div>
           )}
 
-          {activeTab === 'weekly' && (
+          {activeTab === 'daily' && (
             <div className="flex items-center space-x-2">
-              <span className="text-slate-500">Hafta seçimi için gün:</span>
               <input
                 type="date"
                 value={targetDate}
                 onChange={(e) => setTargetDate(e.target.value)}
-                className="px-3 py-1 border border-slate-300 rounded-lg text-xs font-bold"
+                className="px-3 py-1.5 bg-white text-slate-900 border border-slate-300 rounded-lg text-xs font-bold shadow-2xs focus:ring-2 focus:ring-blue-500"
+                style={{ color: '#0f172a', backgroundColor: '#ffffff' }}
               />
+              <button
+                type="button"
+                onClick={() => setTargetDate('2026-09-08')}
+                className="px-2.5 py-1 bg-blue-50 hover:bg-blue-100 text-blue-800 border border-blue-200 rounded-lg text-xs font-bold cursor-pointer"
+              >
+                08 Eylül
+              </button>
+            </div>
+          )}
+
+          {activeTab === 'weekly' && (
+            <div className="flex items-center space-x-2">
+              <span className="text-slate-600 font-medium">Hafta için gün:</span>
+              <input
+                type="date"
+                value={targetDate}
+                onChange={(e) => setTargetDate(e.target.value)}
+                className="px-3 py-1.5 bg-white text-slate-900 border border-slate-300 rounded-lg text-xs font-bold shadow-2xs focus:ring-2 focus:ring-blue-500"
+                style={{ color: '#0f172a', backgroundColor: '#ffffff' }}
+              />
+              <button
+                type="button"
+                onClick={() => setTargetDate('2026-09-08')}
+                className="px-2 py-1 bg-blue-50 hover:bg-blue-100 text-blue-800 border border-blue-200 rounded-lg text-xs font-bold cursor-pointer"
+              >
+                08 Eylül Haftası
+              </button>
               {reportData?.startDate && (
                 <span className="bg-blue-50 text-blue-700 px-2 py-0.5 rounded font-bold">
                   {formatDateTR(reportData.startDate)} - {formatDateTR(reportData.endDate)}
@@ -149,7 +221,8 @@ export default function Reports() {
               <select
                 value={targetMonth}
                 onChange={(e) => setTargetMonth(e.target.value)}
-                className="px-3 py-1 border border-slate-300 rounded-lg text-xs font-bold"
+                className="px-3 py-1.5 bg-white text-slate-900 border border-slate-300 rounded-lg text-xs font-bold shadow-2xs focus:ring-2 focus:ring-blue-500"
+                style={{ color: '#0f172a', backgroundColor: '#ffffff' }}
               >
                 <option value="01">Ocak</option>
                 <option value="02">Şubat</option>
@@ -167,11 +240,22 @@ export default function Reports() {
               <select
                 value={targetYear}
                 onChange={(e) => setTargetYear(e.target.value)}
-                className="px-3 py-1 border border-slate-300 rounded-lg text-xs font-bold"
+                className="px-3 py-1.5 bg-white text-slate-900 border border-slate-300 rounded-lg text-xs font-bold shadow-2xs focus:ring-2 focus:ring-blue-500"
+                style={{ color: '#0f172a', backgroundColor: '#ffffff' }}
               >
                 <option value="2026">2026</option>
                 <option value="2025">2025</option>
               </select>
+              <button
+                type="button"
+                onClick={() => {
+                  setTargetMonth('09');
+                  setTargetYear('2026');
+                }}
+                className="px-2.5 py-1 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 rounded-lg text-xs font-bold cursor-pointer"
+              >
+                Eylül 2026
+              </button>
             </div>
           )}
 
@@ -179,7 +263,8 @@ export default function Reports() {
             <select
               value={targetYear}
               onChange={(e) => setTargetYear(e.target.value)}
-              className="px-3 py-1 border border-slate-300 rounded-lg text-xs font-bold"
+              className="px-3 py-1.5 bg-white text-slate-900 border border-slate-300 rounded-lg text-xs font-bold shadow-2xs focus:ring-2 focus:ring-blue-500"
+              style={{ color: '#0f172a', backgroundColor: '#ffffff' }}
             >
               <option value="2026">2026</option>
               <option value="2025">2025</option>
@@ -187,13 +272,25 @@ export default function Reports() {
           )}
         </div>
 
-        <button
-          onClick={() => window.print()}
-          className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-semibold flex items-center space-x-1.5 transition-colors self-start sm:self-auto"
-        >
-          <Download className="w-3.5 h-3.5" />
-          <span>Yazdır / PDF</span>
-        </button>
+        {/* Action Buttons: Excel Download & PDF Print */}
+        <div className="flex items-center space-x-2 self-start sm:self-auto">
+          <button
+            onClick={handleExportExcel}
+            className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold flex items-center space-x-1.5 transition-colors cursor-pointer shadow-xs"
+            title="Tüm Finansal Raporu ve Personel Hakedişlerini Excel Formatında İndir"
+          >
+            <Download className="w-3.5 h-3.5" />
+            <span>Excel İndir (.XLSX)</span>
+          </button>
+
+          <button
+            onClick={() => window.print()}
+            className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-semibold flex items-center space-x-1.5 transition-colors cursor-pointer"
+          >
+            <Download className="w-3.5 h-3.5" />
+            <span>Yazdır / PDF</span>
+          </button>
+        </div>
       </div>
 
       {/* 3. View Mode Scope Switcher (Birlikte / Sadece Gelir / Sadece Gider / Personel) */}
