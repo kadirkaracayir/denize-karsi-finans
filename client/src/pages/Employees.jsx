@@ -284,7 +284,7 @@ export default function Employees({ onNavigate }) {
                   placeholder="Örn: Ahmet Yılmaz"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm"
+                  className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-sm font-bold text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-blue-500 focus:bg-white"
                 />
               </div>
 
@@ -296,7 +296,7 @@ export default function Employees({ onNavigate }) {
                     placeholder="0532 000 0000"
                     value={formData.phone}
                     onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm"
+                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-sm font-bold text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-blue-500 focus:bg-white"
                   />
                 </div>
 
@@ -305,7 +305,7 @@ export default function Employees({ onNavigate }) {
                   <select
                     value={formData.business_id}
                     onChange={(e) => setFormData({ ...formData, business_id: e.target.value })}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm font-semibold"
+                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-sm font-bold text-slate-900 focus:ring-2 focus:ring-blue-500 focus:bg-white"
                   >
                     <option value="DK">DK (Denize Karşı)</option>
                     <option value="PALM">Palm Beach</option>
@@ -323,7 +323,7 @@ export default function Employees({ onNavigate }) {
                     placeholder="Örn: Barista / Garson"
                     value={formData.role}
                     onChange={(e) => setFormData({ ...formData, role: e.target.value })}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm"
+                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-sm font-bold text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-blue-500 focus:bg-white"
                   />
                 </div>
 
@@ -334,7 +334,7 @@ export default function Employees({ onNavigate }) {
                     placeholder="Örn: Servis / Mutfak"
                     value={formData.department}
                     onChange={(e) => setFormData({ ...formData, department: e.target.value })}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm"
+                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-sm font-bold text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-blue-500 focus:bg-white"
                   />
                 </div>
               </div>
@@ -345,7 +345,7 @@ export default function Employees({ onNavigate }) {
                   <select
                     value={formData.accrual_type}
                     onChange={(e) => setFormData({ ...formData, accrual_type: e.target.value })}
-                    className="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg text-xs"
+                    className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-bold text-slate-900 focus:ring-2 focus:ring-blue-500 focus:bg-white"
                   >
                     <option value="SAATLIK">Saatlik Ücret</option>
                     <option value="GUNLUK">Günlük Sabit Ücret</option>
@@ -357,7 +357,7 @@ export default function Employees({ onNavigate }) {
                   <select
                     value={formData.payment_period}
                     onChange={(e) => setFormData({ ...formData, payment_period: e.target.value })}
-                    className="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg text-xs"
+                    className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-bold text-slate-900 focus:ring-2 focus:ring-blue-500 focus:bg-white"
                   >
                     <option value="GUNLUK">Günlük</option>
                     <option value="HAFTALIK">Haftalık</option>
@@ -374,7 +374,7 @@ export default function Employees({ onNavigate }) {
                       placeholder="250"
                       value={formData.hourly_rate}
                       onChange={(e) => setFormData({ ...formData, hourly_rate: e.target.value })}
-                      className="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-sm font-bold"
+                      className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-sm font-black text-slate-900 focus:ring-2 focus:ring-blue-500 focus:bg-white"
                     />
                   </div>
                 ) : (
@@ -386,7 +386,7 @@ export default function Employees({ onNavigate }) {
                       placeholder="1800"
                       value={formData.daily_rate}
                       onChange={(e) => setFormData({ ...formData, daily_rate: e.target.value })}
-                      className="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-sm font-bold"
+                      className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-sm font-black text-slate-900 focus:ring-2 focus:ring-blue-500 focus:bg-white"
                     />
                   </div>
                 )}
