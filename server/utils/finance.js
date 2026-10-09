@@ -243,6 +243,11 @@ export function getFinancialSummary(startDate, endDate) {
 
   return {
     period: { startDate, endDate },
+    sales,
+    expenses,
+    employeeAccruals,
+    employeePayments,
+    cashMovements,
     finansOzeti: {
       // TEK NAKİT KASA (DK ve Palm nakitleri tek kasada toplanır)
       tekNakitKasa: {

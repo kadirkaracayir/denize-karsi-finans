@@ -161,8 +161,8 @@ export default function SalesList({ onNavigate, onOpenQuickSale }) {
 
       {/* Sales Table */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse text-xs">
+        <div className="overflow-x-auto scrollbar-thin">
+          <table className="w-full min-w-[700px] text-left border-collapse text-xs">
             <thead>
               <tr className="bg-slate-50 border-b border-slate-200 font-bold uppercase tracking-wider text-slate-500">
                 <th className="py-3 px-4">Tarih</th>

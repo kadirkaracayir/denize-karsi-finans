@@ -291,8 +291,8 @@ export default function CashManagement({ onOpenCashTx, onNavigate }) {
           </div>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse text-xs">
+        <div className="overflow-x-auto scrollbar-thin">
+          <table className="w-full min-w-[850px] text-left border-collapse text-xs">
             <thead>
               <tr className="bg-slate-50 border-b border-slate-200 font-bold uppercase tracking-wider text-slate-500">
                 <th className="py-3 px-4">Tarih</th>

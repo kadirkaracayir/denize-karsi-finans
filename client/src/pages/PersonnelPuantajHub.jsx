@@ -129,15 +129,11 @@ export default function PersonnelPuantajHub() {
       const res = await api.get('/employees/attendance/active-dates');
       if (res.success && res.dates && res.dates.length > 0) {
         setActiveDates(res.dates);
-        const datesList = res.dates.map(d => d.date);
-        if (!datesList.includes(dailyDate)) {
-          setDailyDate(res.dates[0].date);
-        }
       }
     } catch (err) {
       console.error('Active dates load error:', err);
     }
-  }, [dailyDate]);
+  }, []);
 
   // Load Excel Matrix (October 2026 - 4 Days)
   const loadExcelMatrix = useCallback(async () => {
@@ -208,7 +204,7 @@ export default function PersonnelPuantajHub() {
       } else if (weeklyPeriodMode === 'custom' && weeklyCustomStartDate && weeklyCustomEndDate) {
         params = { startDate: weeklyCustomStartDate, endDate: weeklyCustomEndDate };
       } else {
-        params = { date: dailyDate || '2026-09-08' };
+        params = { date: dailyDate || '2026-10-08' };
       }
 
       const res = await api.get('/employees/attendance/weekly-summary', params);
@@ -1043,8 +1039,8 @@ export default function PersonnelPuantajHub() {
               </div>
             </div>
 
-            <div className="overflow-x-auto">
-              <table className="w-full text-xs text-left border-collapse">
+            <div className="overflow-x-auto scrollbar-thin">
+              <table className="w-full min-w-[950px] text-xs text-left border-collapse">
                 <thead className="bg-slate-50 text-slate-500 font-bold uppercase text-[10px] border-b border-slate-200">
                   <tr>
                     <th className="py-3 px-3">Personel</th>
@@ -1461,8 +1457,8 @@ export default function PersonnelPuantajHub() {
 
             {/* Weekly Table */}
             <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="w-full text-xs text-left border-collapse">
+              <div className="overflow-x-auto scrollbar-thin">
+                <table className="w-full min-w-[1050px] text-xs text-left border-collapse">
                   <thead className="bg-slate-50 text-slate-500 font-bold uppercase text-[10px] border-b border-slate-200">
                     <tr>
                       <th className="py-3 px-3">#</th>
@@ -1632,8 +1628,8 @@ export default function PersonnelPuantajHub() {
 
           {/* 1-31 Grid Table */}
           <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
-            <div className="overflow-x-auto max-h-[65vh]">
-              <table className="w-full text-xs text-center border-collapse">
+            <div className="overflow-x-auto scrollbar-thin max-h-[65vh]">
+              <table className="w-full min-w-[1300px] text-xs text-center border-collapse">
                 <thead className="bg-slate-900 text-white font-bold sticky top-0 z-20">
                   <tr>
                     <th className="py-2.5 px-3 text-left sticky left-0 z-30 bg-slate-900 w-36">Personel</th>

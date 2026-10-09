@@ -471,13 +471,30 @@ router.get('/export-excel', authenticateToken, (req, res) => {
     }
 
     if (!sDate || !eDate) {
-      sDate = '2026-09-05';
-      eDate = '2026-09-08';
+      sDate = '2026-10-05';
+      eDate = '2026-10-08';
     }
 
     const summary = getFinancialSummary(sDate, eDate);
     const personnel = getPersonnelReport(sDate, eDate);
     const expenses = getExpensesReport(sDate, eDate);
+
+    const sG = summary?.gunlukOzet || {};
+    const sSalesDK = summary?.sales?.DK?.total ?? sG.dkSatis ?? 0;
+    const sSalesPalm = summary?.sales?.PALM?.total ?? sG.palmSatis ?? 0;
+    const sSalesNakit = summary?.sales?.ORTAK?.nakit ?? sG.nakitSatis ?? 0;
+    const sSalesKart = summary?.sales?.ORTAK?.kart ?? sG.kartSatis ?? 0;
+    const sSalesTotal = summary?.sales?.ORTAK?.total ?? sG.toplamSatis ?? (sSalesDK + sSalesPalm);
+
+    const sExpDK = summary?.expenses?.DK ?? sG.dkGider ?? 0;
+    const sExpPalm = summary?.expenses?.PALM ?? sG.palmGider ?? 0;
+    const sExpTotal = summary?.expenses?.TOTAL ?? sG.gider ?? (sExpDK + sExpPalm);
+
+    const sAccrual = summary?.employeeAccruals?.ORTAK ?? sG.personelHakedis ?? personnel?.totals?.total_accrual ?? 0;
+    const sPaid = personnel?.totals?.total_paid ?? 0;
+    const sTotalCost = sExpTotal + sAccrual;
+    const sNetProfit = sSalesTotal - sTotalCost;
+    const sBalance = personnel?.totals?.total_balance ?? 0;
 
     const wb = XLSX.utils.book_new();
 
@@ -488,23 +505,23 @@ router.get('/export-excel', authenticateToken, (req, res) => {
       [`Rapor Alınma Tarihi: ${new Date().toLocaleDateString('tr-TR')} ${new Date().toLocaleTimeString('tr-TR')}`],
       [],
       ['GELİR KALEMLERİ', 'TUTAR (TL)'],
-      ['Denize Karşı Satışları', summary.sales.DK.total],
-      ['Palm Beach Satışları', summary.sales.PALM.total],
-      ['Toplam Nakit Satış', summary.sales.ORTAK.nakit],
-      ['Toplam Kredi Kartı Satış', summary.sales.ORTAK.kart],
-      ['TOPLAM GELİR', summary.sales.ORTAK.total],
+      ['Denize Karşı Satışları', sSalesDK],
+      ['Palm Beach Satışları', sSalesPalm],
+      ['Toplam Nakit Satış', sSalesNakit],
+      ['Toplam Kredi Kartı Satış', sSalesKart],
+      ['TOPLAM GELİR', sSalesTotal],
       [],
       ['GİDER VE YÜKÜMLÜLÜKLER', 'TUTAR (TL)'],
-      ['DK İşletme Giderleri', summary.expenses.DK],
-      ['Palm İşletme Giderleri', summary.expenses.PALM],
-      ['Toplam İşletme Gideri', summary.expenses.TOTAL],
-      ['Personel Çalışma Hakedişi', summary.employeeAccruals.ORTAK],
-      ['Personele Fiilen Ödenen (Avans Dahil)', personnel.totals.total_paid],
-      ['TOPLAM MALİYET (Gider + Hakediş)', summary.expenses.TOTAL + summary.employeeAccruals.ORTAK],
+      ['DK İşletme Giderleri', sExpDK],
+      ['Palm İşletme Giderleri', sExpPalm],
+      ['Toplam İşletme Gideri', sExpTotal],
+      ['Personel Çalışma Hakedişi', sAccrual],
+      ['Personele Fiilen Ödenen (Avans Dahil)', sPaid],
+      ['TOPLAM MALİYET (Gider + Hakediş)', sTotalCost],
       [],
       ['FAALİYET SONUCU', 'TUTAR (TL)'],
-      ['Net Faaliyet Karı / Zararı', summary.sales.ORTAK.total - (summary.expenses.TOTAL + summary.employeeAccruals.ORTAK)],
-      ['Personele Kalan Toplam Borç Bakiyesi', personnel.totals.total_balance]
+      ['Net Faaliyet Karı / Zararı', sNetProfit],
+      ['Personele Kalan Toplam Borç Bakiyesi', sBalance]
     ];
     const wsSum = XLSX.utils.aoa_to_sheet(sumRows);
     XLSX.utils.book_append_sheet(wb, wsSum, 'Finansal_Ozet');

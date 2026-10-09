@@ -131,10 +131,10 @@ export default function Settings() {
             <div className="p-2 rounded-xl bg-slate-100 text-slate-800">
               <SettingsIcon className="w-5 h-5" />
             </div>
-            <h2 className="text-lg font-bold text-slate-900">Sistem Ayarları & Demo Yönetimi</h2>
+            <h2 className="text-lg font-bold text-slate-900">Sistem Ayarları</h2>
           </div>
           <p className="text-xs text-slate-500 mt-1">
-            Veritabanı yönetimi, yedekleme (backup) ve demo veri kümesini temizleme/yenileme işlemleri.
+            Veritabanı yönetimi ve güvenli yedekleme (backup) işlemleri.
           </p>
         </div>
       </div>
@@ -261,49 +261,6 @@ export default function Settings() {
         </form>
       </div>
 
-      {/* 1. SECTION: DEMO VERİ YÖNETİMİ (Section 32) */}
-      <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-xs space-y-4">
-        <div className="flex items-center space-x-2 border-b border-slate-100 pb-3">
-          <Database className="w-5 h-5 text-blue-600" />
-          <h3 className="font-bold text-sm text-slate-900">Demo Veri Kümesi Kontrolleri</h3>
-        </div>
-
-        <p className="text-xs text-slate-600 leading-relaxed">
-          Uygulama ilk açıldığında gerçekçi 15 günlük DK ve Palm satış, gider, puantaj ve banka kayıtlarıyla birlikte gelir. Sistemi sıfırdan test etmek için demo verilerini temizleyebilir veya dilediğiniz zaman 15 günlük tam örnek veri setini yeniden yükleyebilirsiniz.
-        </p>
-
-        <div className="flex flex-col sm:flex-row items-center gap-3 pt-2">
-          <button
-            type="button"
-            disabled={actionLoading}
-            onClick={() => setConfirmModal({
-              isOpen: true,
-              type: 'RESET',
-              title: 'Demo Verilerini Temizle',
-              description: 'Tüm satış, gider, puantaj ve banka verileri silinecektir. Sistem temiz başlangıç durumuna dönecektir. Devam etmek istiyor musunuz?'
-            })}
-            className="w-full sm:w-auto px-4 py-2.5 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 rounded-xl text-xs font-bold flex items-center justify-center space-x-2 transition-colors disabled:opacity-50"
-          >
-            <Trash2 className="w-4 h-4" />
-            <span>Demo Verilerini Temizle</span>
-          </button>
-
-          <button
-            type="button"
-            disabled={actionLoading}
-            onClick={() => setConfirmModal({
-              isOpen: true,
-              type: 'SEED',
-              title: '15 Günlük Demo Verilerini Yeniden Oluştur',
-              description: 'DK ve Palm için son 15 güne ait satışlar, giderler, puantaj ve banka hareketleri baştan oluşturulacaktır. Devam etmek istiyor musunuz?'
-            })}
-            className="w-full sm:w-auto px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow-xs flex items-center justify-center space-x-2 transition-colors disabled:opacity-50"
-          >
-            <RotateCcw className="w-4 h-4" />
-            <span>15 Günlük Demo Verilerini Yeniden Oluştur</span>
-          </button>
-        </div>
-      </div>
 
       {/* 2. SECTION: YEDEKLEME / BACKUP (Section 33) */}
       <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-xs space-y-4">

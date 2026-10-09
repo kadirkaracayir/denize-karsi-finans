@@ -478,8 +478,8 @@ export default function Reports() {
                       Tüm Detayları Gör →
                     </button>
                   </div>
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left border-collapse text-xs">
+                  <div className="overflow-x-auto scrollbar-thin">
+                    <table className="w-full min-w-[700px] text-left border-collapse text-xs">
                       <thead>
                         <tr className="bg-slate-50 border-b border-slate-200 text-slate-500 font-bold uppercase">
                           <th className="py-2.5 px-4">Personel</th>
@@ -553,8 +553,8 @@ export default function Reports() {
               {activeTab === 'daily' && reportData?.salesBreakdown && (
                 <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs">
                   <h4 className="font-bold text-sm text-slate-800 mb-3">Günün Satış Detayları (İşletme & Ödeme Tipi)</h4>
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left border-collapse text-xs">
+                  <div className="overflow-x-auto scrollbar-thin">
+                    <table className="w-full min-w-[650px] text-left border-collapse text-xs">
                       <thead>
                         <tr className="bg-slate-50 border-b border-slate-200 text-slate-500 font-bold uppercase">
                           <th className="py-2.5 px-4">İşletme</th>
@@ -590,8 +590,8 @@ export default function Reports() {
               {activeTab === 'weekly' && reportData?.dailyBreakdown && (
                 <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs">
                   <h4 className="font-bold text-sm text-slate-800 mb-3">Haftalık Gün Gün Satış Tablosu</h4>
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left border-collapse text-xs">
+                  <div className="overflow-x-auto scrollbar-thin">
+                    <table className="w-full min-w-[750px] text-left border-collapse text-xs">
                       <thead>
                         <tr className="bg-slate-50 border-b border-slate-200 text-slate-500 font-bold uppercase">
                           <th className="py-2.5 px-4">Tarih</th>
@@ -872,8 +872,8 @@ export default function Reports() {
                   </div>
                 </div>
 
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left border-collapse text-xs">
+                <div className="overflow-x-auto scrollbar-thin">
+                  <table className="w-full min-w-[980px] text-left border-collapse text-xs">
                     <thead>
                       <tr className="bg-slate-50 border-b border-slate-200 text-slate-500 font-bold uppercase">
                         <th className="py-2.5 px-4">Personel Adı</th>
