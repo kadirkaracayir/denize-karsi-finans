@@ -41,6 +41,31 @@ body {
   scrollbar-color: #94a3b8 #f1f5f9;
 }
 
+/* Personel & Puantaj ve Tablolar için Özel Belirgin Yatay Scrollbar */
+.horizontal-scroll-container {
+  overflow-x: auto !important;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: auto;
+  scrollbar-color: #2563eb #e2e8f0;
+}
+.horizontal-scroll-container::-webkit-scrollbar {
+  height: 12px !important;
+  width: 8px !important;
+}
+.horizontal-scroll-container::-webkit-scrollbar-track {
+  background: #e2e8f0 !important;
+  border-radius: 8px !important;
+  margin: 0 4px !important;
+}
+.horizontal-scroll-container::-webkit-scrollbar-thumb {
+  background: #2563eb !important; /* Canlı mavi renk, çok net görünür */
+  border-radius: 8px !important;
+  border: 2px solid #e2e8f0 !important;
+}
+.horizontal-scroll-container::-webkit-scrollbar-thumb:hover {
+  background: #1d4ed8 !important;
+}
+
 /* Ensure all inputs and selects are always high-contrast dark text and never white */
 input, select, textarea {
   color: #0f172a !important;

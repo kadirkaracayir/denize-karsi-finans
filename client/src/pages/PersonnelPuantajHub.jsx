@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { 
   Users, 
   Clock, 
@@ -24,7 +24,8 @@ import {
   ArrowUpRight,
   CreditCard,
   Save,
-  CheckCircle
+  CheckCircle,
+  ArrowLeftRight
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useFilters } from '../context/FilterContext';
@@ -91,6 +92,29 @@ export default function PersonnelPuantajHub() {
   const [matrixData, setMatrixData] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [toastMessage, setToastMessage] = useState(null);
+
+  // Table Scroll Refs & Handlers
+  const dailyTableRef = useRef(null);
+  const weeklyTableRef = useRef(null);
+  const matrixTableRef = useRef(null);
+
+  const scrollDailyTable = (amount) => {
+    if (dailyTableRef.current) {
+      dailyTableRef.current.scrollBy({ left: amount, behavior: 'smooth' });
+    }
+  };
+
+  const scrollWeeklyTable = (amount) => {
+    if (weeklyTableRef.current) {
+      weeklyTableRef.current.scrollBy({ left: amount, behavior: 'smooth' });
+    }
+  };
+
+  const scrollMatrixTable = (amount) => {
+    if (matrixTableRef.current) {
+      matrixTableRef.current.scrollBy({ left: amount, behavior: 'smooth' });
+    }
+  };
 
   // In-line daily time form edits state: { [empId]: { check_in_time, check_out_time, status, hours_worked, accrual_amount, notes } }
   const [timeRowState, setTimeRowState] = useState({});
@@ -1010,7 +1034,33 @@ export default function PersonnelPuantajHub() {
                   Toplam {dailyAttendance.length} Ortak Personel
                 </span>
               </div>
-              <div className="flex items-center space-x-2">
+              <div className="flex flex-wrap items-center gap-2">
+                {/* Horizontal Scroll Controls */}
+                <div className="flex items-center space-x-1 bg-slate-100 px-2 py-1 rounded-xl border border-slate-200">
+                  <button
+                    type="button"
+                    onClick={() => scrollDailyTable(-300)}
+                    className="px-2 py-1 bg-white hover:bg-slate-200 text-slate-800 rounded-lg text-xs font-bold transition-all flex items-center gap-1 shadow-2xs border border-slate-200 cursor-pointer"
+                    title="Tabloyu Sola Kaydır"
+                  >
+                    <ChevronLeft className="w-3.5 h-3.5 text-blue-600" />
+                    <span className="hidden sm:inline">Sola</span>
+                  </button>
+                  <span className="text-[11px] text-blue-700 font-black px-1.5 flex items-center gap-1">
+                    <ArrowLeftRight className="w-3.5 h-3.5 text-blue-600" />
+                    <span className="hidden md:inline">Yatay Kaydır</span>
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => scrollDailyTable(300)}
+                    className="px-2 py-1 bg-white hover:bg-slate-200 text-slate-800 rounded-lg text-xs font-bold transition-all flex items-center gap-1 shadow-2xs border border-slate-200 cursor-pointer"
+                    title="Tabloyu Sağa Kaydır"
+                  >
+                    <span className="hidden sm:inline">Sağa</span>
+                    <ChevronRight className="w-3.5 h-3.5 text-blue-600" />
+                  </button>
+                </div>
+
                 <button
                   onClick={handleSaveAllAttendance}
                   disabled={isSavingAll || dailyAttendance.length === 0}
@@ -1039,19 +1089,22 @@ export default function PersonnelPuantajHub() {
               </div>
             </div>
 
-            <div className="overflow-x-auto scrollbar-thin">
-              <table className="w-full min-w-[950px] text-xs text-left border-collapse">
-                <thead className="bg-slate-50 text-slate-500 font-bold uppercase text-[10px] border-b border-slate-200">
+            <div 
+              ref={dailyTableRef}
+              className="overflow-x-auto overflow-y-auto max-h-[70vh] horizontal-scroll-container scrollbar-thin"
+            >
+              <table className="w-full min-w-[1050px] text-xs text-left border-collapse">
+                <thead className="bg-slate-100 text-slate-700 font-bold uppercase text-[10px] border-b border-slate-200 sticky top-0 z-20 shadow-xs">
                   <tr>
-                    <th className="py-3 px-3">Personel</th>
-                    <th className="py-3 px-3">Durum (İşaretle)</th>
-                    <th className="py-3 px-3 text-center text-emerald-800 bg-emerald-50/60 font-black">🟢 Giriş Saati</th>
-                    <th className="py-3 px-3 text-center text-rose-800 bg-rose-50/60 font-black">🔴 Çıkış Saati</th>
-                    <th className="py-3 px-3 text-center text-blue-800 bg-blue-50/60 font-black">⏱️ Çalışılan Süre</th>
-                    <th className="py-3 px-3 text-right">Saatlik Ücret</th>
-                    <th className="py-3 px-3 text-right">Hesaplanan Hakediş</th>
-                    <th className="py-3 px-3 text-right">Günün Avansı</th>
-                    <th className="py-3 px-3 text-center">Hızlı İşlemler</th>
+                    <th className="py-3 px-3 sticky left-0 z-30 bg-slate-100 border-r border-slate-200 shadow-xs min-w-[160px]">Personel</th>
+                    <th className="py-3 px-3 min-w-[150px]">Durum (İşaretle)</th>
+                    <th className="py-3 px-3 text-center text-emerald-800 bg-emerald-50/60 font-black min-w-[110px]">🟢 Giriş Saati</th>
+                    <th className="py-3 px-3 text-center text-rose-800 bg-rose-50/60 font-black min-w-[110px]">🔴 Çıkış Saati</th>
+                    <th className="py-3 px-3 text-center text-blue-800 bg-blue-50/60 font-black min-w-[110px]">⏱️ Çalışılan Süre</th>
+                    <th className="py-3 px-3 text-right min-w-[100px]">Saatlik Ücret</th>
+                    <th className="py-3 px-3 text-right min-w-[130px]">Hesaplanan Hakediş</th>
+                    <th className="py-3 px-3 text-right min-w-[110px]">Günün Avansı</th>
+                    <th className="py-3 px-3 text-center min-w-[120px]">Hızlı İşlemler</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -1067,9 +1120,9 @@ export default function PersonnelPuantajHub() {
                     const isSaving = savingRowId === emp.employee_id;
 
                     return (
-                      <tr key={emp.employee_id} className="hover:bg-slate-50/80 transition-colors">
-                        {/* Personel Info */}
-                        <td className="py-3 px-3">
+                      <tr key={emp.employee_id} className="hover:bg-slate-50/80 transition-colors group">
+                        {/* Personel Info - Sticky on Left */}
+                        <td className="py-3 px-3 sticky left-0 z-10 bg-white group-hover:bg-slate-50 border-r border-slate-200 shadow-2xs min-w-[160px]">
                           <div className="font-bold text-slate-900">{emp.employee_name}</div>
                           <div className="text-[10px] text-slate-400">
                             {emp.employee_role || 'Ortak Personel'}
@@ -1217,8 +1270,34 @@ export default function PersonnelPuantajHub() {
             </div>
 
             {/* Table Bottom Action & Summary Bar */}
-            <div className="p-4 bg-slate-50 border-t border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="p-3 bg-slate-50 border-t border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div className="flex flex-wrap items-center gap-4 text-xs">
+                {/* Horizontal Scroll Controls on Bottom Bar */}
+                <div className="flex items-center space-x-1 bg-white px-2 py-1 rounded-xl border border-slate-200 shadow-2xs">
+                  <button
+                    type="button"
+                    onClick={() => scrollDailyTable(-300)}
+                    className="px-2 py-1 bg-slate-50 hover:bg-slate-200 text-slate-800 rounded-lg text-xs font-bold transition-all flex items-center gap-1 border border-slate-200 cursor-pointer"
+                    title="Tabloyu Sola Kaydır"
+                  >
+                    <ChevronLeft className="w-3.5 h-3.5 text-blue-600" />
+                    <span>Sola</span>
+                  </button>
+                  <span className="text-[11px] text-blue-700 font-black px-1.5 flex items-center gap-1">
+                    <ArrowLeftRight className="w-3.5 h-3.5 text-blue-600" />
+                    <span>Yatay Kaydır</span>
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => scrollDailyTable(300)}
+                    className="px-2 py-1 bg-slate-50 hover:bg-slate-200 text-slate-800 rounded-lg text-xs font-bold transition-all flex items-center gap-1 border border-slate-200 cursor-pointer"
+                    title="Tabloyu Sağa Kaydır"
+                  >
+                    <span>Sağa</span>
+                    <ChevronRight className="w-3.5 h-3.5 text-blue-600" />
+                  </button>
+                </div>
+
                 <span className="font-semibold text-slate-600">
                   Toplam Personel: <strong className="text-slate-900">{dailyAttendance.length}</strong>
                 </span>
@@ -1435,7 +1514,33 @@ export default function PersonnelPuantajHub() {
                 </label>
               </div>
 
-              <div className="flex items-center space-x-2 self-start sm:self-auto">
+              <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
+                {/* Horizontal Scroll Controls */}
+                <div className="flex items-center space-x-1 bg-slate-100 px-2 py-1 rounded-xl border border-slate-200">
+                  <button
+                    type="button"
+                    onClick={() => scrollWeeklyTable(-300)}
+                    className="px-2 py-1 bg-white hover:bg-slate-200 text-slate-800 rounded-lg text-xs font-bold transition-all flex items-center gap-1 shadow-2xs border border-slate-200 cursor-pointer"
+                    title="Tabloyu Sola Kaydır"
+                  >
+                    <ChevronLeft className="w-3.5 h-3.5 text-blue-600" />
+                    <span className="hidden sm:inline">Sola</span>
+                  </button>
+                  <span className="text-[11px] text-blue-700 font-black px-1.5 flex items-center gap-1">
+                    <ArrowLeftRight className="w-3.5 h-3.5 text-blue-600" />
+                    <span className="hidden md:inline">Yatay Kaydır</span>
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => scrollWeeklyTable(300)}
+                    className="px-2 py-1 bg-white hover:bg-slate-200 text-slate-800 rounded-lg text-xs font-bold transition-all flex items-center gap-1 shadow-2xs border border-slate-200 cursor-pointer"
+                    title="Tabloyu Sağa Kaydır"
+                  >
+                    <span className="hidden sm:inline">Sağa</span>
+                    <ChevronRight className="w-3.5 h-3.5 text-blue-600" />
+                  </button>
+                </div>
+
                 <button
                   onClick={handleExportRangeExcel}
                   className="px-4 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs transition-all flex items-center space-x-1.5 cursor-pointer"
@@ -1457,20 +1562,23 @@ export default function PersonnelPuantajHub() {
 
             {/* Weekly Table */}
             <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
-              <div className="overflow-x-auto scrollbar-thin">
-                <table className="w-full min-w-[1050px] text-xs text-left border-collapse">
-                  <thead className="bg-slate-50 text-slate-500 font-bold uppercase text-[10px] border-b border-slate-200">
+              <div 
+                ref={weeklyTableRef}
+                className="overflow-x-auto overflow-y-auto max-h-[70vh] horizontal-scroll-container scrollbar-thin"
+              >
+                <table className="w-full min-w-[1100px] text-xs text-left border-collapse">
+                  <thead className="bg-slate-100 text-slate-700 font-bold uppercase text-[10px] border-b border-slate-200 sticky top-0 z-20 shadow-xs">
                     <tr>
-                      <th className="py-3 px-3">#</th>
-                      <th className="py-3 px-3">Personel</th>
-                      <th className="py-3 px-2 text-right">Dönem Saati</th>
-                      <th className="py-3 px-3 text-right">Saat / Gün Ücreti</th>
-                      <th className="py-3 px-3 text-right">Toplam Hakediş</th>
-                      <th className="py-3 px-3 text-right">Alınan Avans</th>
-                      <th className="py-3 px-3 text-right">Yapılan Ödeme</th>
-                      <th className="py-3 px-3 text-right bg-emerald-50 text-emerald-900 font-black">Ödememiz Gereken Rakam</th>
-                      <th className="py-3 px-3 text-right">Kümülatif Toplam Borç</th>
-                      <th className="py-3 px-3 text-center">İşlemler</th>
+                      <th className="py-3 px-2 sticky left-0 z-30 bg-slate-100 text-slate-500 w-10 text-center">#</th>
+                      <th className="py-3 px-3 sticky left-10 z-30 bg-slate-100 border-r border-slate-200 shadow-xs min-w-[160px]">Personel</th>
+                      <th className="py-3 px-2 text-right min-w-[90px]">Dönem Saati</th>
+                      <th className="py-3 px-3 text-right min-w-[110px]">Saat / Gün Ücreti</th>
+                      <th className="py-3 px-3 text-right min-w-[120px]">Toplam Hakediş</th>
+                      <th className="py-3 px-3 text-right min-w-[100px]">Alınan Avans</th>
+                      <th className="py-3 px-3 text-right min-w-[100px]">Yapılan Ödeme</th>
+                      <th className="py-3 px-3 text-right bg-emerald-50 text-emerald-900 font-black min-w-[140px]">Ödememiz Gereken Rakam</th>
+                      <th className="py-3 px-3 text-right min-w-[120px]">Kümülatif Toplam Borç</th>
+                      <th className="py-3 px-3 text-center min-w-[120px]">İşlemler</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
@@ -1482,9 +1590,11 @@ export default function PersonnelPuantajHub() {
                       </tr>
                     ) : (
                       filteredWeeklyEmployees.map((emp, idx) => (
-                        <tr key={emp.id} className="hover:bg-slate-50/80">
-                          <td className="py-3 px-3 text-slate-400 font-bold">{idx + 1}</td>
-                          <td className="py-3 px-3">
+                        <tr key={emp.id} className="hover:bg-slate-50/80 group transition-colors">
+                          <td className="py-3 px-2 text-slate-400 font-bold sticky left-0 z-10 bg-white group-hover:bg-slate-50 text-center w-10">
+                            {idx + 1}
+                          </td>
+                          <td className="py-3 px-3 sticky left-10 z-10 bg-white group-hover:bg-slate-50 border-r border-slate-200 shadow-2xs min-w-[160px]">
                             <div className="font-bold text-slate-900">{emp.name}</div>
                             <div className="text-[10px] text-slate-400">{emp.role}</div>
                           </td>
@@ -1531,9 +1641,9 @@ export default function PersonnelPuantajHub() {
                       ))
                     )}
                   </tbody>
-                  <tfoot className="bg-slate-900 text-white font-black text-xs">
+                  <tfoot className="bg-slate-900 text-white font-black text-xs sticky bottom-0 z-20">
                     <tr>
-                      <td colSpan="2" className="py-3 px-3">
+                      <td colSpan="2" className="py-3 px-3 sticky left-0 z-30 bg-slate-900 border-r border-slate-700 shadow-xs">
                         GENEL TOPLAM ({filteredWeeklyEmployees.length} Personel)
                       </td>
                       <td className="py-3 px-2 text-right text-blue-300">
@@ -1557,6 +1667,32 @@ export default function PersonnelPuantajHub() {
                     </tr>
                   </tfoot>
                 </table>
+              </div>
+
+              {/* Tab 3 Alt Yatay Kaydırma Çubuğu & Hızlı Butonlar */}
+              <div className="p-3 bg-slate-50 border-t border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <span className="flex items-center gap-1.5 font-bold text-[11px] text-slate-500">
+                  <ArrowLeftRight className="w-3.5 h-3.5 text-blue-600" />
+                  <span>Tabloyu sağa-sola kaydırarak saat, hakediş, avans ve ödenecek net tutarları inceleyebilirsiniz.</span>
+                </span>
+                <div className="flex items-center space-x-1">
+                  <button
+                    type="button"
+                    onClick={() => scrollWeeklyTable(-300)}
+                    className="px-2.5 py-1 bg-white hover:bg-slate-200 border border-slate-300 rounded-lg text-xs font-bold transition-all shadow-2xs flex items-center gap-1 cursor-pointer"
+                  >
+                    <ChevronLeft className="w-3.5 h-3.5 text-blue-600" />
+                    <span>Sola</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => scrollWeeklyTable(300)}
+                    className="px-2.5 py-1 bg-white hover:bg-slate-200 border border-slate-300 rounded-lg text-xs font-bold transition-all shadow-2xs flex items-center gap-1 cursor-pointer"
+                  >
+                    <span>Sağa</span>
+                    <ChevronRight className="w-3.5 h-3.5 text-blue-600" />
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -1597,38 +1733,68 @@ export default function PersonnelPuantajHub() {
               </button>
             </div>
 
-            {/* View Mode Toggle */}
-            <div className="flex items-center space-x-2">
-              <span className="text-xs font-bold text-slate-600">Görünüm:</span>
-              <button
-                type="button"
-                onClick={() => setMatrixViewMode('times')}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center space-x-1.5 cursor-pointer ${
-                  matrixViewMode === 'times'
-                    ? 'bg-blue-600 text-white shadow-xs'
-                    : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
-                }`}
-              >
-                <Clock className="w-3.5 h-3.5" />
-                <span>🕒 Giriş / Çıkış Saatleri</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setMatrixViewMode('status')}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center space-x-1.5 cursor-pointer ${
-                  matrixViewMode === 'status'
-                    ? 'bg-blue-600 text-white shadow-xs'
-                    : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
-                }`}
-              >
-                <span>📋 Kodlar (Ç/İ)</span>
-              </button>
+            {/* View Mode Toggle & Scroll Controls */}
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="flex items-center space-x-1 bg-slate-100 px-2 py-1 rounded-xl border border-slate-200">
+                <button
+                  type="button"
+                  onClick={() => scrollMatrixTable(-350)}
+                  className="px-2 py-1 bg-white hover:bg-slate-200 text-slate-800 rounded-lg text-xs font-bold transition-all flex items-center gap-1 shadow-2xs border border-slate-200 cursor-pointer"
+                  title="Puantajı Sola Kaydır"
+                >
+                  <ChevronLeft className="w-3.5 h-3.5 text-blue-600" />
+                  <span className="hidden sm:inline">Sola</span>
+                </button>
+                <span className="text-[11px] text-blue-700 font-black px-1.5 flex items-center gap-1">
+                  <ArrowLeftRight className="w-3.5 h-3.5 text-blue-600" />
+                  <span className="hidden md:inline">Günleri Kaydır</span>
+                </span>
+                <button
+                  type="button"
+                  onClick={() => scrollMatrixTable(350)}
+                  className="px-2 py-1 bg-white hover:bg-slate-200 text-slate-800 rounded-lg text-xs font-bold transition-all flex items-center gap-1 shadow-2xs border border-slate-200 cursor-pointer"
+                  title="Puantajı Sağa Kaydır"
+                >
+                  <span className="hidden sm:inline">Sağa</span>
+                  <ChevronRight className="w-3.5 h-3.5 text-blue-600" />
+                </button>
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <span className="text-xs font-bold text-slate-600">Görünüm:</span>
+                <button
+                  type="button"
+                  onClick={() => setMatrixViewMode('times')}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center space-x-1.5 cursor-pointer ${
+                    matrixViewMode === 'times'
+                      ? 'bg-blue-600 text-white shadow-xs'
+                      : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
+                  }`}
+                >
+                  <Clock className="w-3.5 h-3.5" />
+                  <span>🕒 Giriş / Çıkış Saatleri</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMatrixViewMode('status')}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center space-x-1.5 cursor-pointer ${
+                    matrixViewMode === 'status'
+                      ? 'bg-blue-600 text-white shadow-xs'
+                      : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
+                  }`}
+                >
+                  <span>📋 Kodlar (Ç/İ)</span>
+                </button>
+              </div>
             </div>
           </div>
 
           {/* 1-31 Grid Table */}
           <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
-            <div className="overflow-x-auto scrollbar-thin max-h-[65vh]">
+            <div 
+              ref={matrixTableRef}
+              className="overflow-x-auto overflow-y-auto scrollbar-thin max-h-[68vh] horizontal-scroll-container"
+            >
               <table className="w-full min-w-[1300px] text-xs text-center border-collapse">
                 <thead className="bg-slate-900 text-white font-bold sticky top-0 z-20">
                   <tr>
@@ -1723,6 +1889,32 @@ export default function PersonnelPuantajHub() {
                   ))}
                 </tbody>
               </table>
+            </div>
+
+            {/* Tab 2 Alt Yatay Kaydırma Çubuğu & Hızlı Butonlar */}
+            <div className="p-3 bg-slate-50 border-t border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <span className="flex items-center gap-1.5 font-bold text-[11px] text-slate-500">
+                <ArrowLeftRight className="w-3.5 h-3.5 text-blue-600" />
+                <span>Ayın 1'inden 31'ine kadar tüm günleri görmek için sağa ve sola kaydırabilirsiniz.</span>
+              </span>
+              <div className="flex items-center space-x-1">
+                <button
+                  type="button"
+                  onClick={() => scrollMatrixTable(-350)}
+                  className="px-2.5 py-1 bg-white hover:bg-slate-200 border border-slate-300 rounded-lg text-xs font-bold transition-all shadow-2xs flex items-center gap-1 cursor-pointer"
+                >
+                  <ChevronLeft className="w-3.5 h-3.5 text-blue-600" />
+                  <span>Sola</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => scrollMatrixTable(350)}
+                  className="px-2.5 py-1 bg-white hover:bg-slate-200 border border-slate-300 rounded-lg text-xs font-bold transition-all shadow-2xs flex items-center gap-1 cursor-pointer"
+                >
+                  <span>Sağa</span>
+                  <ChevronRight className="w-3.5 h-3.5 text-blue-600" />
+                </button>
+              </div>
             </div>
           </div>
         </div>
