@@ -701,8 +701,13 @@ router.post(
       const hourlyRate = parseFloat(emp.hourly_rate) || 0;
       let accrual = 0;
 
+      let finalStatus = status;
+      if (!finalStatus && hours > 0) {
+        finalStatus = 'CALISTI';
+      }
+
       // SADECE Saatlik Ücret ile hesaplama:
-      if (status === 'CALISTI' || status === 'YARIM_GUN') {
+      if (finalStatus === 'CALISTI' || finalStatus === 'YARIM_GUN') {
         accrual = Math.round(hours * hourlyRate * 100) / 100;
       } else {
         hours = 0;
@@ -733,7 +738,7 @@ router.post(
         inTime,
         outTime,
         hours,
-        status,
+        finalStatus,
         accrual,
         notes || null,
         req.user.id

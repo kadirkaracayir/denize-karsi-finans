@@ -5,11 +5,12 @@ import { useFilters } from '../../context/FilterContext';
 import ReasonModal from './ReasonModal';
 
 export default function QuickExpenseModal({ isOpen, onClose, onSuccess }) {
-  const { selectedBusiness, triggerRefresh } = useFilters();
+  const { selectedBusiness, customEndDate, triggerRefresh } = useFilters();
+  const todayStr = new Date().toISOString().split('T')[0];
   const [categories, setCategories] = useState([]);
   const [formData, setFormData] = useState({
     business_id: selectedBusiness === 'ALL' ? 'DK' : selectedBusiness,
-    date: '2026-10-08',
+    date: customEndDate || todayStr,
     category_id: '',
     amount: '',
     payment_source: 'DK_KASA',
@@ -28,6 +29,7 @@ export default function QuickExpenseModal({ isOpen, onClose, onSuccess }) {
             setFormData(prev => ({
               ...prev,
               business_id: selectedBusiness === 'ALL' ? 'DK' : selectedBusiness,
+              date: customEndDate || todayStr,
               category_id: prev.category_id || res.categories[0].id,
               payment_source: 'KASA',
             }));
@@ -35,7 +37,7 @@ export default function QuickExpenseModal({ isOpen, onClose, onSuccess }) {
         })
         .catch(console.error);
     }
-  }, [isOpen, selectedBusiness]);
+  }, [isOpen, selectedBusiness, customEndDate]);
 
   if (!isOpen) return null;
 

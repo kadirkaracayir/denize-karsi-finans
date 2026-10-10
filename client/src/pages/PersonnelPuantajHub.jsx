@@ -301,12 +301,17 @@ export default function PersonnelPuantajHub() {
       const outT = updated.check_out_time || '00:00';
       const calculatedHours = calcLiveHours(inT, outT);
 
+      // Saat girildiyse ve durum seçilmediyse otomatik olarak 'CALISTI' yap
+      if (calculatedHours > 0 && (!updated.status || updated.status === 'GELMEDI')) {
+        updated.status = 'CALISTI';
+      }
+
       // SADECE Saatlik Ücret ile hesaplama
       const empInfo = dailyAttendance.find(e => e.employee_id === empId);
       const hourlyRate = parseFloat(empInfo?.hourly_rate) || 0;
 
       let calculatedAccrual = 0;
-      if (updated.status === 'CALISTI' || updated.status === 'YARIM_GUN') {
+      if (updated.status === 'CALISTI' || updated.status === 'YARIM_GUN' || (calculatedHours > 0 && !updated.status)) {
         calculatedAccrual = Math.round(calculatedHours * hourlyRate * 100) / 100;
       } else {
         calculatedAccrual = 0;
@@ -327,7 +332,13 @@ export default function PersonnelPuantajHub() {
     const row = timeRowState[empId];
     if (!row) return;
 
-    if (!row.status) {
+    let targetStatus = row.status;
+    const hours = row.hours_worked || calcLiveHours(row.check_in_time, row.check_out_time);
+    if (!targetStatus && hours > 0) {
+      targetStatus = 'CALISTI';
+    }
+
+    if (!targetStatus) {
       alert('Lütfen personelin durumunu (Çalıştı, Yarım Gün, İzinli vb.) işaretleyiniz.');
       return;
     }
@@ -339,7 +350,7 @@ export default function PersonnelPuantajHub() {
         date: dailyDate,
         check_in_time: row.check_in_time,
         check_out_time: row.check_out_time,
-        status: row.status,
+        status: targetStatus,
         notes: row.notes || ''
       });
 
@@ -369,13 +380,22 @@ export default function PersonnelPuantajHub() {
     try {
       const promises = keys.map(empId => {
         const row = timeRowState[empId];
-        if (!row || !row.status) return null;
+        if (!row) return null;
+
+        let targetStatus = row.status;
+        const hours = row.hours_worked || calcLiveHours(row.check_in_time, row.check_out_time);
+        if (!targetStatus && hours > 0) {
+          targetStatus = 'CALISTI';
+        }
+
+        if (!targetStatus) return null;
+
         return api.post('/employees/attendance/time-entry', {
           employee_id: parseInt(empId, 10),
           date: dailyDate,
           check_in_time: row.check_in_time,
           check_out_time: row.check_out_time,
-          status: row.status,
+          status: targetStatus,
           notes: row.notes || ''
         }).then(res => {
           if (res.success) successCount++;
@@ -385,7 +405,7 @@ export default function PersonnelPuantajHub() {
       }).filter(Boolean);
 
       if (promises.length === 0) {
-        alert('Kaydedilecek personellerin durumunu (Çalıştı, İzinli vb.) işaretleyiniz.');
+        alert('Kaydedilecek personellerin çalışma saatlerini veya durumunu (Çalıştı, İzinli vb.) giriniz.');
         setIsSavingAll(false);
         return;
       }

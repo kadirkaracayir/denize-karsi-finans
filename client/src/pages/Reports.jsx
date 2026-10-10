@@ -23,14 +23,24 @@ import { api } from '../services/api';
 import { formatCurrency, formatCurrencyShort, formatDateTR } from '../utils/formatters';
 
 export default function Reports() {
+  const getTodayStr = () => {
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = String(now.getMonth() + 1).padStart(2, '0');
+    const d = String(now.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  };
+
+  const todayStr = getTodayStr();
+
   const [activeTab, setActiveTab] = useState('custom'); // 'custom', 'daily', 'weekly', 'monthly', 'yearly'
-  const [viewScope, setViewScope] = useState('personnel'); // 'all' (Gelir & Gider), 'income' (Sadece Gelir), 'expenses' (Sadece Gider), 'personnel' (Personel & Avans)
+  const [viewScope, setViewScope] = useState('all'); // 'all' (Gelir & Gider), 'income' (Sadece Gelir), 'expenses' (Sadece Gider), 'personnel' (Personel & Avans)
   
-  const [targetDate, setTargetDate] = useState('2026-10-08');
+  const [targetDate, setTargetDate] = useState(todayStr);
   const [targetMonth, setTargetMonth] = useState('10');
   const [targetYear, setTargetYear] = useState('2026');
-  const [customStartDate, setCustomStartDate] = useState('2026-10-05');
-  const [customEndDate, setCustomEndDate] = useState('2026-10-08');
+  const [customStartDate, setCustomStartDate] = useState('2026-10-01');
+  const [customEndDate, setCustomEndDate] = useState(todayStr);
 
   const [reportData, setReportData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -165,13 +175,34 @@ export default function Reports() {
               <button
                 type="button"
                 onClick={() => {
+                  setCustomStartDate('2026-10-01');
+                  setCustomEndDate(todayStr);
+                }}
+                className="px-2.5 py-1 bg-blue-50 hover:bg-blue-100 text-blue-900 border border-blue-200 rounded-lg text-xs font-bold cursor-pointer transition-colors"
+                title="Tüm Ekim ayını seç"
+              >
+                📅 Tüm Ekim
+              </button>
+              <button
+                type="button"
+                onClick={() => {
                   setCustomStartDate('2026-10-05');
                   setCustomEndDate('2026-10-08');
                 }}
                 className="px-2.5 py-1 bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300 rounded-lg text-xs font-bold cursor-pointer transition-colors"
                 title="Girilmiş olan Ekim puantaj dönemini seç"
               >
-                🌟 05-08 Ekim Puantajı
+                🌟 05-08 Ekim
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setCustomStartDate(todayStr);
+                  setCustomEndDate(todayStr);
+                }}
+                className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 rounded-lg text-xs font-bold cursor-pointer transition-colors"
+              >
+                ⚡ Bugün
               </button>
             </div>
           )}
@@ -185,6 +216,13 @@ export default function Reports() {
                 className="px-3 py-1.5 bg-white text-slate-900 border border-slate-300 rounded-lg text-xs font-bold shadow-2xs focus:ring-2 focus:ring-blue-500"
                 style={{ color: '#0f172a', backgroundColor: '#ffffff' }}
               />
+              <button
+                type="button"
+                onClick={() => setTargetDate(todayStr)}
+                className="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 rounded-lg text-xs font-bold cursor-pointer"
+              >
+                Bugün
+              </button>
               <button
                 type="button"
                 onClick={() => setTargetDate('2026-10-08')}

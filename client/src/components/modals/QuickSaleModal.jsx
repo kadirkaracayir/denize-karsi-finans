@@ -5,10 +5,11 @@ import { useFilters } from '../../context/FilterContext';
 import ReasonModal from './ReasonModal';
 
 export default function QuickSaleModal({ isOpen, onClose, onSuccess }) {
-  const { selectedBusiness, triggerRefresh } = useFilters();
+  const { selectedBusiness, customEndDate, triggerRefresh } = useFilters();
+  const todayStr = new Date().toISOString().split('T')[0];
   const [formData, setFormData] = useState({
     business_id: selectedBusiness === 'ALL' ? 'DK' : selectedBusiness,
-    date: '2026-10-08',
+    date: customEndDate || todayStr,
     payment_type: 'NAKIT',
     amount: '',
     description: '',
@@ -22,9 +23,10 @@ export default function QuickSaleModal({ isOpen, onClose, onSuccess }) {
       setFormData(prev => ({
         ...prev,
         business_id: selectedBusiness === 'ALL' ? 'DK' : selectedBusiness,
+        date: customEndDate || todayStr,
       }));
     }
-  }, [isOpen, selectedBusiness]);
+  }, [isOpen, selectedBusiness, customEndDate]);
 
   if (!isOpen) return null;
 

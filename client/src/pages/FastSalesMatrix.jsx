@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Zap, Check, ArrowRight, RefreshCw, AlertCircle, Building2, Calendar, Wallet, CreditCard } from 'lucide-react';
 import { api } from '../services/api';
 import { useFilters } from '../context/FilterContext';
@@ -7,7 +7,14 @@ import ReasonModal from '../components/modals/ReasonModal';
 
 export default function FastSalesMatrix({ onNavigate }) {
   const { customEndDate, triggerRefresh } = useFilters();
-  const [targetDate, setTargetDate] = useState(customEndDate || '2026-10-08');
+  const todayStr = new Date().toISOString().split('T')[0];
+  const [targetDate, setTargetDate] = useState(customEndDate || todayStr);
+
+  useEffect(() => {
+    if (customEndDate) {
+      setTargetDate(customEndDate);
+    }
+  }, [customEndDate]);
 
   // DK Form State
   const [dkNakit, setDkNakit] = useState('');
