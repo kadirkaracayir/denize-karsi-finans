@@ -37,7 +37,7 @@ export default function App() {
   const { path } = useRouter();
   const { isAuthenticated, isLoading } = useAuth();
   const { customEndDate } = useFilters();
-  const [activeTab, setActiveTab] = useState('fast-sales');
+  const [activeTab, setActiveTab] = useState('sales');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   // Quick Action Modals
@@ -63,6 +63,7 @@ export default function App() {
   // Finans ve Personel Takip Sekmeleri
   const renderActivePage = () => {
     switch (activeTab) {
+      case 'sales':
       case 'fast-sales':
       case 'dashboard':
         return <FastSalesMatrix onNavigate={setActiveTab} />;
@@ -76,15 +77,6 @@ export default function App() {
             onOpenDayClose={(d = customEndDate) => setDayCloseDate(d || '2026-10-09')}
           />
         );
-      case 'sales':
-        return (
-          <SalesList
-            onNavigate={setActiveTab}
-            onOpenQuickSale={() => setShowQuickSale(true)}
-          />
-        );
-      case 'fast-sales':
-        return <FastSalesMatrix onNavigate={setActiveTab} />;
       case 'cash':
         return (
           <CashManagement
