@@ -146,8 +146,8 @@ router.post('/forgot-password', async (req, res) => {
       return res.status(404).json({ success: false, message: 'Bu e-posta adresine kayıtlı kullanıcı bulunamadı.' });
     }
 
-    // Generate 6-digit verification code and secure token
-    const code = String(Math.floor(100000 + Math.random() * 900000));
+    // Generate cryptographically random 6-digit verification code and secure token
+    const code = String(crypto.randomInt(100000, 1000000));
     const token = crypto.randomBytes(24).toString('hex');
     const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString(); // 15 mins
 

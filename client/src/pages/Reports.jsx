@@ -911,38 +911,46 @@ export default function Reports() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
-                      {personnelReport?.employees?.map(emp => (
-                        <tr key={emp.id} className="hover:bg-slate-50 transition-colors">
-                          <td className="py-2.5 px-4 font-bold text-slate-900">{emp.name}</td>
-                          <td className="py-2.5 px-4 text-slate-500">{emp.role || 'Ortak Personel'}</td>
-                          <td className="py-2.5 px-4 text-center font-medium text-slate-600">
-                            {formatCurrency(emp.hourly_rate)} / sa
-                          </td>
-                          <td className="py-2.5 px-4 text-center">
-                            <span className="px-2 py-0.5 bg-blue-50 text-blue-800 rounded font-black">
-                              {emp.total_hours} sa
-                            </span>
-                          </td>
-                          <td className="py-2.5 px-4 text-center text-slate-600 font-medium">
-                            {emp.days_worked} gün
-                          </td>
-                          <td className="py-2.5 px-4 text-right font-black text-slate-900">
-                            {formatCurrency(emp.total_accrual)}
-                          </td>
-                          <td className="py-2.5 px-4 text-right font-bold text-rose-700">
-                            {emp.total_advance > 0 ? `-${formatCurrency(emp.total_advance)}` : '₺0'}
-                          </td>
-                          <td className="py-2.5 px-4 text-right font-bold text-emerald-700">
-                            {formatCurrency(emp.total_paid)}
-                          </td>
-                          <td className="py-2.5 px-4 text-right font-semibold text-slate-800">
-                            {formatCurrency(emp.net_period_balance)}
-                          </td>
-                          <td className="py-2.5 px-4 text-right font-black text-rose-700 bg-rose-50/30">
-                            {formatCurrency(emp.current_balance)}
+                      {personnelReport?.employees && personnelReport.employees.length > 0 ? (
+                        personnelReport.employees.map(emp => (
+                          <tr key={emp.id} className="hover:bg-slate-50 transition-colors">
+                            <td className="py-2.5 px-4 font-bold text-slate-900">{emp.name}</td>
+                            <td className="py-2.5 px-4 text-slate-500">{emp.role || 'Ortak Personel'}</td>
+                            <td className="py-2.5 px-4 text-center font-medium text-slate-600">
+                              {formatCurrency(emp.hourly_rate)} / sa
+                            </td>
+                            <td className="py-2.5 px-4 text-center">
+                              <span className={`px-2 py-0.5 rounded font-black ${emp.total_hours > 0 ? 'bg-blue-50 text-blue-800' : 'text-slate-400 bg-slate-50'}`}>
+                                {emp.total_hours} sa
+                              </span>
+                            </td>
+                            <td className="py-2.5 px-4 text-center text-slate-600 font-medium">
+                              {emp.days_worked} gün
+                            </td>
+                            <td className="py-2.5 px-4 text-right font-black text-slate-900">
+                              {formatCurrency(emp.total_accrual)}
+                            </td>
+                            <td className="py-2.5 px-4 text-right font-bold text-rose-700">
+                              {emp.total_advance > 0 ? `-${formatCurrency(emp.total_advance)}` : '₺0'}
+                            </td>
+                            <td className="py-2.5 px-4 text-right font-bold text-emerald-700">
+                              {formatCurrency(emp.total_paid)}
+                            </td>
+                            <td className="py-2.5 px-4 text-right font-semibold text-slate-800">
+                              {formatCurrency(emp.net_period_balance)}
+                            </td>
+                            <td className="py-2.5 px-4 text-right font-black text-rose-700 bg-rose-50/30">
+                              {formatCurrency(emp.current_balance)}
+                            </td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan="10" className="py-8 text-center text-slate-400 font-medium">
+                            Seçilen tarih aralığında puantaj veya hakediş kaydı bulunmuyor.
                           </td>
                         </tr>
-                      ))}
+                      )}
                     </tbody>
                     <tfoot>
                       <tr className="bg-slate-100/80 font-black border-t-2 border-slate-300 text-slate-900">

@@ -42,28 +42,6 @@ export default function Settings() {
       .finally(() => setLoading(false));
   };
 
-  const handleActionConfirm = async () => {
-    setActionLoading(true);
-    setMsg({ text: '', type: '' });
-    const actionType = confirmModal.type;
-    setConfirmModal({ isOpen: false, type: '', title: '', description: '' });
-
-    try {
-      if (actionType === 'RESET') {
-        const res = await api.post('/settings/demo/reset', { reason: 'Kullanıcı sıfırlama talebi' });
-        setMsg({ text: res.message, type: 'success' });
-      } else if (actionType === 'SEED') {
-        const res = await api.post('/settings/demo/seed', { reason: 'Kullanıcı demo veri yeniden yükleme talebi' });
-        setMsg({ text: res.message, type: 'success' });
-      }
-      loadInfo();
-      triggerRefresh();
-    } catch (err) {
-      setMsg({ text: err.message || 'İşlem başarısız oldu.', type: 'error' });
-    } finally {
-      setActionLoading(false);
-    }
-  };
 
   const handleDownloadBackup = () => {
     const token = localStorage.getItem('dk_auth_token');
@@ -148,36 +126,6 @@ export default function Settings() {
         </div>
       </div>
 
-      {/* Confirmation Modal */}
-      {confirmModal.isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 space-y-4">
-            <div className="flex items-center space-x-3 text-amber-600">
-              <AlertTriangle className="w-6 h-6" />
-              <h3 className="font-bold text-base text-slate-900">{confirmModal.title}</h3>
-            </div>
-            <p className="text-xs text-slate-600 leading-relaxed">
-              {confirmModal.description}
-            </p>
-            <div className="flex justify-end space-x-2 pt-2">
-              <button
-                type="button"
-                onClick={() => setConfirmModal({ isOpen: false, type: '', title: '', description: '' })}
-                className="px-4 py-2 border border-slate-300 rounded-xl text-xs font-semibold text-slate-700 hover:bg-slate-50"
-              >
-                Vazgeç
-              </button>
-              <button
-                type="button"
-                onClick={handleActionConfirm}
-                className="px-5 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-bold"
-              >
-                Evet, Onaylıyorum
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

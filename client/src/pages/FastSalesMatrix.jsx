@@ -12,11 +12,13 @@ export default function FastSalesMatrix({ onNavigate }) {
   // DK Form State
   const [dkNakit, setDkNakit] = useState('');
   const [dkKart, setDkKart] = useState('');
+  const [dkKomisyon, setDkKomisyon] = useState('');
   const [dkDesc, setDkDesc] = useState('DK Günlük Satış Hasılatı');
 
   // Palm Form State
   const [palmNakit, setPalmNakit] = useState('');
   const [palmKart, setPalmKart] = useState('');
+  const [palmKomisyon, setPalmKomisyon] = useState('');
   const [palmDesc, setPalmDesc] = useState('Palm Günlük Satış Hasılatı');
 
   const [saving, setSaving] = useState(false);
@@ -27,14 +29,18 @@ export default function FastSalesMatrix({ onNavigate }) {
   // Computed Live Totals
   const dkNakitNum = parseFloat(dkNakit) || 0;
   const dkKartNum = parseFloat(dkKart) || 0;
+  const dkKomisyonNum = parseFloat(dkKomisyon) || 0;
   const dkTotal = dkNakitNum + dkKartNum;
 
   const palmNakitNum = parseFloat(palmNakit) || 0;
   const palmKartNum = parseFloat(palmKart) || 0;
+  const palmKomisyonNum = parseFloat(palmKomisyon) || 0;
   const palmTotal = palmNakitNum + palmKartNum;
 
   const totalNakit = dkNakitNum + palmNakitNum;
   const totalKart = dkKartNum + palmKartNum;
+  const totalKomisyon = dkKomisyonNum + palmKomisyonNum;
+  const netBankaKart = Math.max(0, totalKart - totalKomisyon);
   const grandTotal = dkTotal + palmTotal;
 
   const handleSubmit = async (changeReason = null) => {
@@ -53,11 +59,13 @@ export default function FastSalesMatrix({ onNavigate }) {
         dk: (dkNakitNum > 0 || dkKartNum > 0) ? {
           nakit: dkNakitNum,
           kart: dkKartNum,
+          komisyon: dkKomisyonNum,
           description: dkDesc
         } : null,
         palm: (palmNakitNum > 0 || palmKartNum > 0) ? {
           nakit: palmNakitNum,
           kart: palmKartNum,
+          komisyon: palmKomisyonNum,
           description: palmDesc
         } : null,
         description: 'Hızlı Günlük Satış Girişi'
@@ -71,8 +79,10 @@ export default function FastSalesMatrix({ onNavigate }) {
         // Clear inputs
         setDkNakit('');
         setDkKart('');
+        setDkKomisyon('');
         setPalmNakit('');
         setPalmKart('');
+        setPalmKomisyon('');
       }
     } catch (err) {
       if (err.data && err.data.requiresReason) {
@@ -188,6 +198,28 @@ export default function FastSalesMatrix({ onNavigate }) {
             </div>
 
             <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-rose-600 mb-1.5 flex items-center space-x-1">
+                <CreditCard className="w-3.5 h-3.5 text-rose-600" />
+                <span>DK Kredi Kartı Komisyon Tutarı (TL)</span>
+              </label>
+              <div className="relative">
+                <input
+                  type="number"
+                  step="0.01"
+                  placeholder="0.00"
+                  value={dkKomisyon}
+                  onChange={(e) => { setDkKomisyon(e.target.value); setSuccessMsg(''); setErrorMsg(''); }}
+                  className="w-full px-3.5 py-2.5 pl-3.5 pr-10 border border-rose-200 rounded-xl text-base font-bold text-rose-900 focus:outline-none focus:ring-2 focus:ring-rose-500 bg-rose-50/30"
+                />
+                <span className="absolute right-3.5 top-3 text-xs font-bold text-rose-400">TL</span>
+              </div>
+              <div className="flex justify-between items-center mt-1 text-[11px] text-slate-500 font-medium">
+                <span>Banka Hesabına Net Düşen:</span>
+                <span className="font-bold text-blue-700">{formatCurrency(Math.max(0, dkKartNum - dkKomisyonNum))}</span>
+              </div>
+            </div>
+
+            <div>
               <label className="block text-[11px] font-semibold text-slate-500 mb-1">Açıklama (Opsiyonel)</label>
               <input
                 type="text"
@@ -249,6 +281,28 @@ export default function FastSalesMatrix({ onNavigate }) {
             </div>
 
             <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-rose-600 mb-1.5 flex items-center space-x-1">
+                <CreditCard className="w-3.5 h-3.5 text-rose-600" />
+                <span>Palm Kredi Kartı Komisyon Tutarı (TL)</span>
+              </label>
+              <div className="relative">
+                <input
+                  type="number"
+                  step="0.01"
+                  placeholder="0.00"
+                  value={palmKomisyon}
+                  onChange={(e) => { setPalmKomisyon(e.target.value); setSuccessMsg(''); setErrorMsg(''); }}
+                  className="w-full px-3.5 py-2.5 pl-3.5 pr-10 border border-rose-200 rounded-xl text-base font-bold text-rose-900 focus:outline-none focus:ring-2 focus:ring-rose-500 bg-rose-50/30"
+                />
+                <span className="absolute right-3.5 top-3 text-xs font-bold text-rose-400">TL</span>
+              </div>
+              <div className="flex justify-between items-center mt-1 text-[11px] text-slate-500 font-medium">
+                <span>Banka Hesabına Net Düşen:</span>
+                <span className="font-bold text-emerald-700">{formatCurrency(Math.max(0, palmKartNum - palmKomisyonNum))}</span>
+              </div>
+            </div>
+
+            <div>
               <label className="block text-[11px] font-semibold text-slate-500 mb-1">Açıklama (Opsiyonel)</label>
               <input
                 type="text"
@@ -263,19 +317,27 @@ export default function FastSalesMatrix({ onNavigate }) {
       </div>
 
       {/* Live Consolidated Summary & Save Card */}
-      <div className="bg-slate-900 text-white rounded-2xl p-5 shadow-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="grid grid-cols-3 gap-6">
+      <div className="bg-slate-900 text-white rounded-2xl p-5 shadow-xl flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
           <div>
-            <span className="text-[11px] text-slate-400 uppercase font-semibold block">Ortak Nakit Satış</span>
-            <span className="text-lg font-black text-emerald-400">{formatCurrency(totalNakit)}</span>
+            <span className="text-[11px] text-slate-400 uppercase font-semibold block">Ortak Nakit</span>
+            <span className="text-base font-black text-emerald-400">{formatCurrency(totalNakit)}</span>
           </div>
           <div>
-            <span className="text-[11px] text-slate-400 uppercase font-semibold block">Ortak Kart Satış</span>
-            <span className="text-lg font-black text-blue-400">{formatCurrency(totalKart)}</span>
+            <span className="text-[11px] text-slate-400 uppercase font-semibold block">Ortak Brüt Kart</span>
+            <span className="text-base font-black text-blue-400">{formatCurrency(totalKart)}</span>
           </div>
           <div>
-            <span className="text-[11px] text-slate-400 uppercase font-semibold block">GÜNLÜK TOPLAM</span>
-            <span className="text-xl font-black text-white">{formatCurrency(grandTotal)}</span>
+            <span className="text-[11px] text-rose-300 uppercase font-semibold block">Kart Komisyonu (-)</span>
+            <span className="text-base font-black text-rose-400">-{formatCurrency(totalKomisyon)}</span>
+          </div>
+          <div>
+            <span className="text-[11px] text-slate-400 uppercase font-semibold block">Net Banka Kartı</span>
+            <span className="text-base font-black text-indigo-300">{formatCurrency(netBankaKart)}</span>
+          </div>
+          <div>
+            <span className="text-[11px] text-amber-300 uppercase font-semibold block">GÜNLÜK TOPLAM</span>
+            <span className="text-lg font-black text-white">{formatCurrency(grandTotal)}</span>
           </div>
         </div>
 

@@ -158,6 +158,30 @@ export default function QuickSaleModal({ isOpen, onClose, onSuccess }) {
               </div>
             </div>
 
+            {formData.payment_type === 'KART' && (
+              <div>
+                <label className="block text-xs font-bold uppercase text-rose-600 mb-1">
+                  Kredi Kartı Komisyon Tutarı (TL)
+                </label>
+                <div className="relative">
+                  <input
+                    type="number"
+                    step="0.01"
+                    placeholder="0.00"
+                    value={formData.commission_amount || ''}
+                    onChange={(e) => setFormData({ ...formData, commission_amount: e.target.value })}
+                    className="w-full px-3 py-2 pl-3 pr-10 border border-rose-200 rounded-lg font-semibold text-rose-900 text-sm focus:outline-none focus:ring-2 focus:ring-rose-500 bg-rose-50/30"
+                  />
+                  <span className="absolute right-3 top-2 font-bold text-rose-400">TL</span>
+                </div>
+                {formData.amount && (
+                  <p className="text-[11px] text-slate-500 mt-1">
+                    Banka Hesabına Net Düşen: <strong className="text-blue-700">{((parseFloat(formData.amount) || 0) - (parseFloat(formData.commission_amount) || 0)).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} TL</strong>
+                  </p>
+                )}
+              </div>
+            )}
+
             <div>
               <label className="block text-xs font-semibold uppercase text-slate-500 mb-1">Açıklama (Opsiyonel)</label>
               <input

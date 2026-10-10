@@ -420,7 +420,7 @@ router.post(
   checkClosedDate(req => req.body.date),
   (req, res) => {
     try {
-      const { business_id, date, payment_type, amount, description = '', source = 'MANUEL' } = req.body;
+      const { business_id, date, payment_type, amount, commission_amount, description = '', source = 'MANUEL' } = req.body;
 
       if (!business_id || !date || !payment_type || !amount) {
         return res.status(400).json({ success: false, message: 'İşletme, tarih, ödeme tipi ve tutar zorunludur.' });
@@ -433,13 +433,24 @@ router.post(
 
       const result = stmt.run(business_id, date, payment_type, parseFloat(amount), description, source, req.user.id);
 
+      if (payment_type === 'KART' && parseFloat(commission_amount) > 0) {
+        db.prepare(`
+          INSERT INTO daily_card_settlements (business_id, date, commission_rate, rate_difference, commission_amount, notes, created_by, updated_at)
+          VALUES (?, ?, 0, 0, ?, 'Tekil Satış Komisyon Tutarı', ?, CURRENT_TIMESTAMP)
+          ON CONFLICT(business_id, date) DO UPDATE SET
+            commission_amount = commission_amount + excluded.commission_amount,
+            notes = excluded.notes,
+            updated_at = CURRENT_TIMESTAMP
+        `).run(business_id, date, parseFloat(commission_amount), req.user.id);
+      }
+
       logAudit({
         userId: req.user.id,
         userName: req.user.full_name,
         action: 'SALE_CREATE',
         entityType: 'SALES',
         entityId: result.lastInsertRowid,
-        newValues: { business_id, date, payment_type, amount, description },
+        newValues: { business_id, date, payment_type, amount, commission_amount, description },
         changeReason: req.changeReason,
         ipAddress: req.ip
       });
