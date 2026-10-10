@@ -122,7 +122,7 @@ export default function Login() {
 
   const handleOpenForgot = () => {
     setForgotStep(1);
-    setForgotEmail(identifier.includes('@') ? identifier : 'cengizhankan53@hotmail.com');
+    setForgotEmail(identifier.includes('@') ? identifier : '');
     setForgotCode('');
     setNewPassword('');
     setConfirmPassword('');
@@ -172,7 +172,7 @@ export default function Login() {
                   type="text"
                   value={identifier}
                   onChange={(e) => setIdentifier(e.target.value)}
-                  placeholder="cengizhankan53@hotmail.com"
+                  placeholder="E-posta veya kullanıcı adınızı girin"
                   required
                   autoComplete="username"
                   className="w-full px-3.5 py-2.5 pl-10 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent text-slate-800"
@@ -296,15 +296,12 @@ export default function Login() {
                         type="email"
                         value={forgotEmail}
                         onChange={(e) => setForgotEmail(e.target.value)}
-                        placeholder="cengizhankan53@hotmail.com"
+                        placeholder="E-posta adresinizi girin"
                         required
                         className="w-full px-3.5 py-2.5 pl-10 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-blue-600 text-slate-800"
                       />
                       <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
                     </div>
-                    <span className="text-[10px] text-slate-400 mt-1 block">
-                      * Yalnızca ana yönetici hesabı (cengizhankan53@hotmail.com) için kod üretilir.
-                    </span>
                   </div>
 
                   <div className="flex items-center justify-end space-x-2 pt-2">
