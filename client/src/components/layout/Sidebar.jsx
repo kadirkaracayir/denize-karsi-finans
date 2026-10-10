@@ -29,6 +29,7 @@ export default function Sidebar({ activeTab, onSelectTab, isMobileOpen, onCloseM
     { id: 'sales', label: 'Hızlı Satış & Gelir', icon: BadgePercent, badge: 'Nakit/KK' },
     { id: 'cash', label: 'Nakit Kasa', icon: Wallet },
     { id: 'attendance', label: 'Personel & Puantaj', icon: Clock, badge: 'Excel Format' },
+    { id: 'employees', label: 'Personel Listesi', icon: Users },
     { id: 'expenses', label: 'Giderler', icon: Receipt },
     { id: 'reports', label: 'Raporlar', icon: BarChart3 },
     { id: 'settings', label: 'Ayarlar', icon: Settings, adminOnly: true },

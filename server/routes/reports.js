@@ -496,6 +496,9 @@ router.get('/export-excel', authenticateToken, (req, res) => {
     const sNetProfit = sSalesTotal - sTotalCost;
     const sBalance = personnel?.totals?.total_balance ?? 0;
 
+    const sCardComm = summary?.finansOzeti?.ortakKart?.komisyonTutari ?? 0;
+    const sNetCard = summary?.finansOzeti?.ortakKart?.netBankayaDusen ?? (sSalesKart - sCardComm);
+
     const wb = XLSX.utils.book_new();
 
     // 1. FİNANSAL ÖZET SAYFASI
@@ -508,8 +511,10 @@ router.get('/export-excel', authenticateToken, (req, res) => {
       ['Denize Karşı Satışları', sSalesDK],
       ['Palm Beach Satışları', sSalesPalm],
       ['Toplam Nakit Satış', sSalesNakit],
-      ['Toplam Kredi Kartı Satış', sSalesKart],
-      ['TOPLAM GELİR', sSalesTotal],
+      ['Toplam Kredi Kartı Satış (Brüt)', sSalesKart],
+      ['Kredi Kartı Komisyon Kesintisi (-)', sCardComm],
+      ['Kredi Kartı Net Bankaya Düşen', sNetCard],
+      ['TOPLAM GELİR (Brüt Satış)', sSalesTotal],
       [],
       ['GİDER VE YÜKÜMLÜLÜKLER', 'TUTAR (TL)'],
       ['DK İşletme Giderleri', sExpDK],

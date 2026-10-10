@@ -89,10 +89,14 @@ export default function Reports() {
 
   // Helpers
   const summary = reportData?.summary?.donemOzet || reportData?.summary?.gunlukOzet || reportData?.totals;
+  const finansOzeti = reportData?.summary?.finansOzeti;
   const totalSales = summary?.toplamSatis ?? summary?.totalSales ?? 0;
   const totalExpenses = summary?.gider ?? summary?.totalExpenses ?? 0;
   const totalPersonnel = summary?.personelHakedis ?? summary?.totalPersonnel ?? 0;
   const netProfit = summary?.faaliyetKari ?? (totalSales - (totalExpenses + totalPersonnel));
+
+  const totalCardCommission = finansOzeti?.ortakKart?.komisyonTutari || 0;
+  const netBankCard = finansOzeti?.ortakKart?.netBankayaDusen || ((summary?.kartSatis ?? 0) - totalCardCommission);
 
   const personnelReport = reportData?.personnelReport;
   const expensesReport = reportData?.expensesReport;
@@ -431,9 +435,19 @@ export default function Reports() {
                       <span className="text-slate-600">Nakit Tahsilat:</span>
                       <span className="font-bold text-slate-900">{formatCurrency(summary?.nakitSatis ?? 0)}</span>
                     </div>
-                    <div className="flex justify-between py-1.5">
-                      <span className="text-slate-600">Kredi Kartı Tahsilat:</span>
+                    <div className="flex justify-between py-1.5 border-b border-emerald-100">
+                      <span className="text-slate-600">Kredi Kartı Satış (Brüt):</span>
                       <span className="font-bold text-slate-900">{formatCurrency(summary?.kartSatis ?? 0)}</span>
+                    </div>
+                    {totalCardCommission > 0 && (
+                      <div className="flex justify-between py-1.5 border-b border-emerald-100 text-amber-700">
+                        <span>Kart Komisyon Kesintisi (-):</span>
+                        <span className="font-bold">-{formatCurrency(totalCardCommission)}</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between py-1.5 font-bold text-blue-700">
+                      <span>Banka Hesabına Net Düşen:</span>
+                      <span>{formatCurrency(netBankCard)}</span>
                     </div>
                   </div>
 
@@ -539,12 +553,20 @@ export default function Reports() {
                 </div>
 
                 <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs">
-                  <span className="text-xs font-bold text-indigo-600 uppercase">Ödeme Tipi Dağılımı</span>
+                  <span className="text-xs font-bold text-indigo-600 uppercase">Ödeme Tipi & POS</span>
                   <div className="text-sm font-bold text-slate-800 mt-1">
                     💵 Nakit: {formatCurrency(summary?.nakitSatis ?? 0)}
                   </div>
                   <div className="text-sm font-bold text-blue-700 mt-0.5">
-                    💳 Kart: {formatCurrency(summary?.kartSatis ?? 0)}
+                    💳 Brüt Kart: {formatCurrency(summary?.kartSatis ?? 0)}
+                  </div>
+                  {totalCardCommission > 0 && (
+                    <div className="text-xs font-bold text-amber-700 mt-0.5">
+                      🔻 Komisyon: -{formatCurrency(totalCardCommission)}
+                    </div>
+                  )}
+                  <div className="text-xs font-bold text-emerald-700 mt-0.5">
+                    🏦 Net Banka: {formatCurrency(netBankCard)}
                   </div>
                 </div>
               </div>

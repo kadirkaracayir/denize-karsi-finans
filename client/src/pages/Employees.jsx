@@ -1,161 +1,179 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Users, 
   UserPlus, 
   Edit2, 
-  Trash2,
+  Trash2, 
   Phone, 
-  Building2, 
-  Calendar, 
-  CheckCircle2, 
-  XCircle, 
+  Search, 
   X, 
   Check, 
-  RefreshCw 
+  Clock, 
+  Briefcase,
+  AlertCircle
 } from 'lucide-react';
 import { api } from '../services/api';
-import { useAuth } from '../context/AuthContext';
-import { useFilters } from '../context/FilterContext';
 import { formatCurrency } from '../utils/formatters';
 
 export default function Employees({ onNavigate }) {
-  const { user } = useAuth();
-  const { selectedBusiness, refreshKey, triggerRefresh } = useFilters();
-
   const [employees, setEmployees] = useState([]);
-  const [shifts, setShifts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [editingEmp, setEditingEmp] = useState(null);
 
   const [formData, setFormData] = useState({
     name: '',
     phone: '',
-    business_id: 'DK',
     role: '',
-    department: 'Servis',
-    hourly_rate: '',
-    daily_rate: '',
-    accrual_type: 'SAATLIK',
-    payment_period: 'HAFTALIK',
-    default_shift_id: 1,
+    hourly_rate: ''
   });
 
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
 
-  useEffect(() => {
-    setLoading(true);
-    Promise.all([
-      api.get('/employees', { business_id: selectedBusiness }),
-      api.get('/employees/shifts')
-    ])
-      .then(([empRes, shiftRes]) => {
-        if (empRes.success) setEmployees(empRes.employees);
-        if (shiftRes.success) setShifts(shiftRes.shifts);
-      })
-      .catch(console.error)
-      .finally(() => setLoading(false));
-  }, [selectedBusiness, refreshKey]);
+  // Fetch employees
+  const fetchEmployees = async () => {
+    try {
+      setLoading(true);
+      const res = await api.get('/employees');
+      if (res.success) {
+        setEmployees(res.employees || []);
+      }
+    } catch (err) {
+      console.error('Personel listesi yüklenemedi:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  useEffect(() => {
+    fetchEmployees();
+  }, []);
+
+  // Filtered employees by search query
+  const filteredEmployees = useMemo(() => {
+    if (!searchQuery.trim()) return employees;
+    const q = searchQuery.toLowerCase().trim();
+    return employees.filter(emp => 
+      (emp.name || '').toLowerCase().includes(q) ||
+      (emp.role || '').toLowerCase().includes(q) ||
+      (emp.phone || '').toLowerCase().includes(q)
+    );
+  }, [employees, searchQuery]);
+
+  // Open Add / Edit Modal
   const handleOpenModal = (emp = null) => {
+    setErrorMsg('');
     if (emp) {
       setEditingEmp(emp);
       setFormData({
-        name: emp.name,
+        name: emp.name || '',
         phone: emp.phone || '',
-        business_id: emp.business_id,
-        role: emp.role,
-        department: emp.department || 'Servis',
-        hourly_rate: emp.hourly_rate || '',
-        daily_rate: emp.daily_rate || '',
-        accrual_type: emp.accrual_type,
-        payment_period: emp.payment_period,
-        default_shift_id: emp.default_shift_id || 1,
+        role: emp.role || '',
+        hourly_rate: emp.hourly_rate ?? ''
       });
     } else {
       setEditingEmp(null);
       setFormData({
         name: '',
         phone: '',
-        business_id: selectedBusiness === 'ALL' ? 'DK' : selectedBusiness,
         role: '',
-        department: 'Servis',
-        hourly_rate: '200',
-        daily_rate: '1600',
-        accrual_type: 'SAATLIK',
-        payment_period: 'HAFTALIK',
-        default_shift_id: 1,
+        hourly_rate: '200'
       });
     }
-    setErrorMsg('');
     setShowModal(true);
   };
 
+  // Save (Create or Update)
   const handleSave = async (e) => {
     e.preventDefault();
-    if (!formData.name || !formData.role) {
-      setErrorMsg('Lütfen ad soyad ve görev alanlarını doldurunuz.');
+    if (!formData.name.trim()) {
+      setErrorMsg('Lütfen personelin adını ve soyadını giriniz.');
+      return;
+    }
+    if (!formData.role.trim()) {
+      setErrorMsg('Lütfen personelin görevini giriniz.');
       return;
     }
 
     try {
+      const payload = {
+        name: formData.name.trim(),
+        full_name: formData.name.trim(),
+        phone: formData.phone.trim(),
+        role: formData.role.trim(),
+        hourly_rate: parseFloat(formData.hourly_rate) || 0,
+        business_id: 'ORTAK',
+        accrual_type: 'SAATLIK',
+        payment_period: 'HAFTALIK'
+      };
+
       if (editingEmp) {
-        await api.put(`/employees/${editingEmp.id}`, formData);
-        setSuccessMsg('Personel güncellendi.');
+        await api.put(`/employees/${editingEmp.id}`, payload);
+        setSuccessMsg(`"${payload.name}" personel bilgileri başarıyla güncellendi.`);
       } else {
-        await api.post('/employees', formData);
-        setSuccessMsg('Personel başarıyla eklendi.');
+        await api.post('/employees', payload);
+        setSuccessMsg(`"${payload.name}" adlı yeni personel başarıyla eklendi.`);
       }
+
       setShowModal(false);
-      triggerRefresh();
+      fetchEmployees();
+      setTimeout(() => setSuccessMsg(''), 4000);
     } catch (err) {
-      setErrorMsg(err.message || 'Kayıt başarısız.');
+      setErrorMsg(err.message || 'Kayıt işlemi başarısız oldu.');
     }
   };
 
-  const handleDeleteEmployee = async (emp) => {
-    if (!window.confirm(`${emp.name} adlı personeli ve ilişkili tüm kayıtları silmek istediğinize emin misiniz?`)) {
-      return;
-    }
+  // Delete
+  const handleDelete = async (emp) => {
+    const confirmed = window.confirm(
+      `"${emp.name}" adlı personeli silmek istediğinize emin misiniz?\n\nBu işlem personeli ve ilişkili kayıtlarını sistemden kaldıracaktır.`
+    );
+    if (!confirmed) return;
+
     try {
       const res = await api.delete(`/employees/${emp.id}`);
       if (res.success) {
-        setSuccessMsg(res.message || 'Personel başarıyla silindi.');
-        if (showModal) setShowModal(false);
-        triggerRefresh();
+        setSuccessMsg(res.message || `"${emp.name}" başarıyla silindi.`);
+        fetchEmployees();
+        setTimeout(() => setSuccessMsg(''), 4000);
       }
     } catch (err) {
-      setErrorMsg(err.message || 'Personel silinemedi.');
+      alert('Personel silinirken hata oluştu: ' + (err.message || 'Bilinmeyen hata'));
     }
   };
 
   return (
     <div className="space-y-6 pb-12">
       {/* Header */}
-      <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <div className="flex items-center space-x-2">
             <div className="p-2 rounded-xl bg-blue-500/10 text-blue-600">
               <Users className="w-5 h-5" />
             </div>
-            <h2 className="text-lg font-bold text-slate-900">Personel Yönetimi</h2>
+            <h2 className="text-lg font-bold text-slate-900">Personel Listesi</h2>
           </div>
           <p className="text-xs text-slate-500 mt-1">
-            DK, Palm ve Ortak personellerin tanımları, ücretleri ve güncel borç durumları.
+            İşletme personellerinin iletişim, görev ve saatlik ücret kayıtları.
           </p>
         </div>
 
         <div className="flex items-center space-x-2">
-          <button
-            onClick={() => onNavigate('attendance')}
-            className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold transition-colors"
-          >
-            Puantaja Git
-          </button>
+          {onNavigate && (
+            <button
+              onClick={() => onNavigate('attendance')}
+              className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold flex items-center space-x-1.5 transition-colors cursor-pointer"
+            >
+              <Clock className="w-4 h-4 text-slate-500" />
+              <span>Personel & Puantaj'a Git</span>
+            </button>
+          )}
+
           <button
             onClick={() => handleOpenModal()}
-            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow-xs flex items-center space-x-1.5 transition-colors"
+            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow-xs flex items-center space-x-1.5 transition-colors cursor-pointer"
           >
             <UserPlus className="w-4 h-4" />
             <span>+ Yeni Personel Ekle</span>
@@ -163,87 +181,143 @@ export default function Employees({ onNavigate }) {
         </div>
       </div>
 
+      {/* Success Notification */}
       {successMsg && (
-        <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-800 text-xs">
-          {successMsg}
+        <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-800 text-xs font-semibold flex items-center space-x-2">
+          <Check className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+          <span>{successMsg}</span>
         </div>
       )}
 
-      {/* Employees Table */}
+      {/* Search & Stats Bar */}
+      <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="relative flex-1 max-w-md">
+          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+          <input
+            type="text"
+            placeholder="Personel adı, görev veya telefon ile ara..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 placeholder:text-slate-400 focus:bg-white focus:outline-hidden focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+          />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery('')}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
+
+        <div className="flex items-center space-x-2 text-xs text-slate-500 font-medium">
+          <span>Toplam Personel:</span>
+          <span className="font-bold text-slate-900 bg-slate-100 px-2 py-0.5 rounded-lg">
+            {filteredEmployees.length} {filteredEmployees.length !== employees.length && `(Toplam ${employees.length})`}
+          </span>
+        </div>
+      </div>
+
+      {/* Personel Tablosu - YALNIZCA İSTENEN 4 KOLON + İŞLEMLER */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse text-xs">
+        <div className="overflow-x-auto scrollbar-thin">
+          <table className="w-full min-w-[700px] text-left border-collapse text-xs">
             <thead>
               <tr className="bg-slate-50 border-b border-slate-200 font-bold uppercase tracking-wider text-slate-500">
-                <th className="py-3 px-4">Personel</th>
-                <th className="py-3 px-4">İşletme</th>
-                <th className="py-3 px-4">Görev / Departman</th>
-                <th className="py-3 px-4">Ücret Tipi</th>
-                <th className="py-3 px-4">Ödeme Periyodu</th>
-                <th className="py-3 px-4 text-right">Toplam Hakediş</th>
-                <th className="py-3 px-4 text-right">Toplam Ödenen</th>
-                <th className="py-3 px-4 text-right">Kalan Borç</th>
-                <th className="py-3 px-4 text-center">Düzenle</th>
+                <th className="py-3 px-4 w-12 text-center text-slate-400 font-semibold">#</th>
+                <th className="py-3 px-4">Personel Adı Soyadı</th>
+                <th className="py-3 px-4">İletişim Bilgileri</th>
+                <th className="py-3 px-4">Görevi</th>
+                <th className="py-3 px-4 text-right">Saatlik Ücreti</th>
+                <th className="py-3 px-4 text-center w-28">İşlemler</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {loading ? (
                 <tr>
-                  <td colSpan={9} className="py-8 text-center text-slate-400">Yükleniyor...</td>
+                  <td colSpan={6} className="py-12 text-center text-slate-400">
+                    <div className="inline-block w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mb-2"></div>
+                    <p className="text-xs">Personel listesi yükleniyor...</p>
+                  </td>
                 </tr>
-              ) : employees.length === 0 ? (
+              ) : filteredEmployees.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="py-8 text-center text-slate-400">Personel bulunamadı.</td>
+                  <td colSpan={6} className="py-12 text-center text-slate-400">
+                    {searchQuery ? (
+                      <div>
+                        <p className="font-semibold text-slate-600">Aramanıza uygun personel bulunamadı.</p>
+                        <p className="text-slate-400 text-[11px] mt-1">"{searchQuery}" araması için sonuç yok.</p>
+                      </div>
+                    ) : (
+                      <div>
+                        <p className="font-semibold text-slate-600">Henüz personel kaydı bulunmuyor.</p>
+                        <button
+                          onClick={() => handleOpenModal()}
+                          className="mt-2 text-blue-600 hover:text-blue-700 font-bold text-xs"
+                        >
+                          + İlk Personeli Ekleyin
+                        </button>
+                      </div>
+                    )}
+                  </td>
                 </tr>
               ) : (
-                employees.map((emp) => (
+                filteredEmployees.map((emp, idx) => (
                   <tr key={emp.id} className="hover:bg-slate-50 transition-colors">
-                    <td className="py-3 px-4">
-                      <div className="font-bold text-slate-900">{emp.name}</div>
-                      <div className="text-[11px] text-slate-400">{emp.phone || '-'}</div>
+                    {/* Sıra No */}
+                    <td className="py-3 px-4 text-center text-slate-400 font-medium">
+                      {idx + 1}
                     </td>
+
+                    {/* Personel Adı Soyadı */}
                     <td className="py-3 px-4">
-                      <span className={`px-2 py-0.5 rounded font-bold text-[10px] ${
-                        emp.business_id === 'DK' ? 'bg-blue-100 text-blue-800' :
-                        emp.business_id === 'PALM' ? 'bg-emerald-100 text-emerald-800' :
-                        'bg-purple-100 text-purple-800'
-                      }`}>
-                        {emp.business_id === 'ORTAK' ? 'ORTAK PERSONEL' : emp.business_id}
-                      </span>
+                      <div className="font-bold text-slate-900 text-sm">{emp.name}</div>
                     </td>
+
+                    {/* İletişim Bilgileri */}
                     <td className="py-3 px-4">
-                      <span className="font-semibold text-slate-800">{emp.role}</span>
-                      <span className="text-slate-400 block text-[11px]">{emp.department}</span>
-                    </td>
-                    <td className="py-3 px-4">
-                      {emp.accrual_type === 'SAATLIK' ? (
-                        <span className="text-slate-700">Saatlik ({formatCurrency(emp.hourly_rate)}/saat)</span>
+                      {emp.phone ? (
+                        <a 
+                          href={`tel:${emp.phone}`}
+                          className="inline-flex items-center space-x-1.5 text-slate-700 hover:text-blue-600 font-semibold transition-colors"
+                        >
+                          <Phone className="w-3.5 h-3.5 text-slate-400" />
+                          <span>{emp.phone}</span>
+                        </a>
                       ) : (
-                        <span className="text-slate-700">Günlük ({formatCurrency(emp.daily_rate)}/gün)</span>
+                        <span className="text-slate-400 italic text-[11px]">- İletişim yok -</span>
                       )}
                     </td>
-                    <td className="py-3 px-4 font-medium text-slate-700">{emp.payment_period}</td>
-                    <td className="py-3 px-4 text-right text-slate-600 font-medium">
-                      {formatCurrency(emp.totalAccrued)}
+
+                    {/* Görevi */}
+                    <td className="py-3 px-4">
+                      <span className="inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-lg bg-slate-100 text-slate-800 font-semibold">
+                        <Briefcase className="w-3.5 h-3.5 text-slate-500" />
+                        <span>{emp.role || 'Personel'}</span>
+                      </span>
                     </td>
-                    <td className="py-3 px-4 text-right text-blue-700 font-medium">
-                      {formatCurrency(emp.totalPaid)}
+
+                    {/* Saatlik Ücreti */}
+                    <td className="py-3 px-4 text-right">
+                      <div className="font-extrabold text-blue-700 text-sm">
+                        {formatCurrency(emp.hourly_rate || 0)}
+                        <span className="text-[11px] font-normal text-slate-500 ml-1">/ sa</span>
+                      </div>
                     </td>
-                    <td className="py-3 px-4 text-right font-black text-rose-700 text-sm">
-                      {formatCurrency(emp.balanceDebt)}
-                    </td>
+
+                    {/* İşlemler (Düzenle / Sil) */}
                     <td className="py-3 px-4 text-center">
-                      <div className="flex items-center justify-center space-x-1">
+                      <div className="flex items-center justify-center space-x-1.5">
                         <button
                           onClick={() => handleOpenModal(emp)}
-                          className="p-1.5 rounded-lg text-slate-500 hover:text-blue-600 hover:bg-blue-50 transition-colors"
-                          title="Bilgileri Düzenle"
+                          className="p-1.5 rounded-lg text-slate-500 hover:text-blue-600 hover:bg-blue-50 transition-colors cursor-pointer"
+                          title="Personeli Düzenle"
                         >
                           <Edit2 className="w-3.5 h-3.5" />
                         </button>
                         <button
-                          onClick={() => handleDeleteEmployee(emp)}
-                          className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
+                          onClick={() => handleDelete(emp)}
+                          className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
                           title="Personeli Sil"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
@@ -258,168 +332,122 @@ export default function Employees({ onNavigate }) {
         </div>
       </div>
 
-      {/* Add / Edit Modal */}
+      {/* Personel Ekle / Düzenle Modal */}
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden animate-in fade-in zoom-in duration-150">
+            {/* Modal Header */}
             <div className="bg-slate-900 text-white px-6 py-4 flex items-center justify-between">
-              <h3 className="font-bold text-base">
-                {editingEmp ? 'Personel Bilgilerini Düzenle' : 'Yeni Personel Ekle'}
-              </h3>
-              <button onClick={() => setShowModal(false)} className="p-1 hover:bg-slate-800 rounded-lg">
-                <X className="w-5 h-5 text-slate-400" />
+              <div className="flex items-center space-x-2">
+                <Users className="w-5 h-5 text-blue-400" />
+                <h3 className="font-bold text-base">
+                  {editingEmp ? 'Personel Bilgilerini Düzenle' : 'Yeni Personel Ekle'}
+                </h3>
+              </div>
+              <button 
+                onClick={() => setShowModal(false)} 
+                className="p-1 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-white transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
               </button>
             </div>
 
+            {/* Modal Form */}
             <form onSubmit={handleSave} className="p-6 space-y-4">
               {errorMsg && (
-                <div className="p-3 bg-red-50 text-red-700 rounded-lg text-xs">{errorMsg}</div>
+                <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 rounded-xl text-xs font-semibold flex items-center space-x-2">
+                  <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                  <span>{errorMsg}</span>
+                </div>
               )}
 
+              {/* 1. Personel Adı Soyadı */}
               <div>
-                <label className="block text-xs font-semibold uppercase text-slate-500 mb-1">Ad Soyad</label>
+                <label className="block text-xs font-bold uppercase text-slate-600 mb-1.5">
+                  Personel Adı Soyadı <span className="text-rose-500">*</span>
+                </label>
                 <input
                   type="text"
                   required
                   placeholder="Örn: Ahmet Yılmaz"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-sm font-bold text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-blue-500 focus:bg-white"
+                  className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-sm font-semibold text-slate-900 placeholder:text-slate-400 focus:outline-hidden focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                  autoFocus
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold uppercase text-slate-500 mb-1">Telefon</label>
+              {/* 2. İletişim Bilgileri (Telefon) */}
+              <div>
+                <label className="block text-xs font-bold uppercase text-slate-600 mb-1.5">
+                  İletişim Bilgileri (Telefon)
+                </label>
+                <div className="relative">
+                  <Phone className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
                   <input
-                    type="text"
+                    type="tel"
                     placeholder="0532 000 0000"
                     value={formData.phone}
                     onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-sm font-bold text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-blue-500 focus:bg-white"
+                    className="w-full pl-9 pr-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-sm font-semibold text-slate-900 placeholder:text-slate-400 focus:outline-hidden focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
                   />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold uppercase text-slate-500 mb-1">İşletme</label>
-                  <select
-                    value={formData.business_id}
-                    onChange={(e) => setFormData({ ...formData, business_id: e.target.value })}
-                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-sm font-bold text-slate-900 focus:ring-2 focus:ring-blue-500 focus:bg-white"
-                  >
-                    <option value="DK">DK (Denize Karşı)</option>
-                    <option value="PALM">Palm Beach</option>
-                    <option value="ORTAK">Ortak Personel</option>
-                  </select>
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold uppercase text-slate-500 mb-1">Görev</label>
+              {/* 3. Görevi */}
+              <div>
+                <label className="block text-xs font-bold uppercase text-slate-600 mb-1.5">
+                  Görevi <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Örn: Garson, Barista, Mutfak, Şef, Kasiyer..."
+                  value={formData.role}
+                  onChange={(e) => setFormData({ ...formData, role: e.target.value })}
+                  className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-sm font-semibold text-slate-900 placeholder:text-slate-400 focus:outline-hidden focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                />
+              </div>
+
+              {/* 4. Saatlik Ücreti */}
+              <div>
+                <label className="block text-xs font-bold uppercase text-slate-600 mb-1.5">
+                  Saatlik Ücreti (TL) <span className="text-rose-500">*</span>
+                </label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-bold text-slate-500">₺</span>
                   <input
-                    type="text"
+                    type="number"
+                    step="0.01"
+                    min="0"
                     required
-                    placeholder="Örn: Barista / Garson"
-                    value={formData.role}
-                    onChange={(e) => setFormData({ ...formData, role: e.target.value })}
-                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-sm font-bold text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-blue-500 focus:bg-white"
+                    placeholder="200"
+                    value={formData.hourly_rate}
+                    onChange={(e) => setFormData({ ...formData, hourly_rate: e.target.value })}
+                    className="w-full pl-8 pr-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-sm font-black text-blue-700 placeholder:text-slate-400 focus:outline-hidden focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
                   />
                 </div>
-
-                <div>
-                  <label className="block text-xs font-semibold uppercase text-slate-500 mb-1">Departman</label>
-                  <input
-                    type="text"
-                    placeholder="Örn: Servis / Mutfak"
-                    value={formData.department}
-                    onChange={(e) => setFormData({ ...formData, department: e.target.value })}
-                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-sm font-bold text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-blue-500 focus:bg-white"
-                  />
-                </div>
+                <p className="text-[11px] text-slate-400 mt-1">
+                  Puantajda çalışılan saat bu ücret ile çarpılarak hakediş hesaplanır.
+                </p>
               </div>
 
-              <div className="grid grid-cols-2 gap-3 bg-slate-50 p-3 rounded-xl border border-slate-200">
-                <div>
-                  <label className="block text-xs font-semibold uppercase text-slate-500 mb-1">Hakediş Tipi</label>
-                  <select
-                    value={formData.accrual_type}
-                    onChange={(e) => setFormData({ ...formData, accrual_type: e.target.value })}
-                    className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-bold text-slate-900 focus:ring-2 focus:ring-blue-500 focus:bg-white"
-                  >
-                    <option value="SAATLIK">Saatlik Ücret</option>
-                    <option value="GUNLUK">Günlük Sabit Ücret</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold uppercase text-slate-500 mb-1">Ödeme Periyodu</label>
-                  <select
-                    value={formData.payment_period}
-                    onChange={(e) => setFormData({ ...formData, payment_period: e.target.value })}
-                    className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-bold text-slate-900 focus:ring-2 focus:ring-blue-500 focus:bg-white"
-                  >
-                    <option value="GUNLUK">Günlük</option>
-                    <option value="HAFTALIK">Haftalık</option>
-                    <option value="AYLIK">Aylık</option>
-                  </select>
-                </div>
-
-                {formData.accrual_type === 'SAATLIK' ? (
-                  <div className="col-span-2">
-                    <label className="block text-xs font-semibold uppercase text-slate-500 mb-1">Saatlik Ücret (TL)</label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      placeholder="250"
-                      value={formData.hourly_rate}
-                      onChange={(e) => setFormData({ ...formData, hourly_rate: e.target.value })}
-                      className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-sm font-black text-slate-900 focus:ring-2 focus:ring-blue-500 focus:bg-white"
-                    />
-                  </div>
-                ) : (
-                  <div className="col-span-2">
-                    <label className="block text-xs font-semibold uppercase text-slate-500 mb-1">Günlük Ücret (TL)</label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      placeholder="1800"
-                      value={formData.daily_rate}
-                      onChange={(e) => setFormData({ ...formData, daily_rate: e.target.value })}
-                      className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-lg text-sm font-black text-slate-900 focus:ring-2 focus:ring-blue-500 focus:bg-white"
-                    />
-                  </div>
-                )}
-              </div>
-
-              <div className="flex items-center justify-between pt-3 border-t border-slate-100 mt-4">
-                {editingEmp ? (
-                  <button
-                    type="button"
-                    onClick={() => handleDeleteEmployee(editingEmp)}
-                    className="px-3.5 py-2 text-xs font-bold text-rose-600 hover:bg-rose-50 rounded-xl border border-rose-200 transition-colors flex items-center space-x-1 cursor-pointer"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                    <span>Personeli Sil</span>
-                  </button>
-                ) : <div />}
-
-                <div className="flex items-center space-x-2">
-                  <button
-                    type="button"
-                    onClick={() => setShowModal(false)}
-                    className="px-4 py-2 border border-slate-300 rounded-xl text-xs font-semibold text-slate-700 hover:bg-slate-50 cursor-pointer"
-                  >
-                    Vazgeç
-                  </button>
-                  <button
-                    type="submit"
-                    className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow-xs flex items-center space-x-1.5 cursor-pointer"
-                  >
-                    <Check className="w-4 h-4" />
-                    <span>{editingEmp ? 'Güncellemeleri Kaydet' : 'Personeli Kaydet'}</span>
-                  </button>
-                </div>
+              {/* Modal Buttons */}
+              <div className="flex items-center justify-end space-x-2 pt-4 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setShowModal(false)}
+                  className="px-4 py-2 border border-slate-300 rounded-xl text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
+                >
+                  Vazgeç
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow-xs flex items-center space-x-1.5 transition-colors cursor-pointer"
+                >
+                  <Check className="w-4 h-4" />
+                  <span>{editingEmp ? 'Güncellemeleri Kaydet' : 'Personeli Kaydet'}</span>
+                </button>
               </div>
             </form>
           </div>

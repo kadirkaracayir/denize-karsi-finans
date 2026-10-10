@@ -33,8 +33,10 @@ export default function SalesManagement() {
   const [entryDate, setEntryDate] = useState(activeDate);
   const [dkNakit, setDkNakit] = useState('');
   const [dkKart, setDkKart] = useState('');
+  const [dkKomisyon, setDkKomisyon] = useState('');
   const [palmNakit, setPalmNakit] = useState('');
   const [palmKart, setPalmKart] = useState('');
+  const [palmKomisyon, setPalmKomisyon] = useState('');
   const [description, setDescription] = useState('Günlük Satış Hasılatı');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState(null);
@@ -58,6 +60,14 @@ export default function SalesManagement() {
       });
       if (data.success) {
         setTrackingData(data);
+        if (data.period === 'gunluk' && data.summary) {
+          if (data.summary.dk_komisyon && !dkKomisyon) {
+            setDkKomisyon(String(data.summary.dk_komisyon));
+          }
+          if (data.summary.palm_komisyon && !palmKomisyon) {
+            setPalmKomisyon(String(data.summary.palm_komisyon));
+          }
+        }
       }
     } catch (err) {
       console.error('Tracking fetch error:', err);
@@ -73,14 +83,20 @@ export default function SalesManagement() {
   // Calculations for live form totals
   const numDkNakit = parseFloat(dkNakit) || 0;
   const numDkKart = parseFloat(dkKart) || 0;
+  const numDkKomisyon = parseFloat(dkKomisyon) || 0;
+  const numDkNetKart = Math.max(0, numDkKart - numDkKomisyon);
   const numDkTotal = numDkNakit + numDkKart;
 
   const numPalmNakit = parseFloat(palmNakit) || 0;
   const numPalmKart = parseFloat(palmKart) || 0;
+  const numPalmKomisyon = parseFloat(palmKomisyon) || 0;
+  const numPalmNetKart = Math.max(0, numPalmKart - numPalmKomisyon);
   const numPalmTotal = numPalmNakit + numPalmKart;
 
   const combinedNakit = numDkNakit + numPalmNakit;
   const combinedKart = numDkKart + numPalmKart;
+  const combinedKomisyon = numDkKomisyon + numPalmKomisyon;
+  const combinedNetKart = numDkNetKart + numPalmNetKart;
   const grandTotal = numDkTotal + numPalmTotal;
 
   // Handle Fast Sales Submission
@@ -97,21 +113,33 @@ export default function SalesManagement() {
     try {
       const data = await api.post('/sales/matrix', {
         date: entryDate,
-        dk: { nakit: numDkNakit, kart: numDkKart, description: `DK ${description}` },
-        palm: { nakit: numPalmNakit, kart: numPalmKart, description: `Palm ${description}` },
+        dk: { 
+          nakit: numDkNakit, 
+          kart: numDkKart, 
+          komisyon: numDkKomisyon,
+          description: `DK ${description}` 
+        },
+        palm: { 
+          nakit: numPalmNakit, 
+          kart: numPalmKart, 
+          komisyon: numPalmKomisyon,
+          description: `Palm ${description}` 
+        },
         description
       });
 
       if (data.success) {
         setSubmitStatus({
           type: 'success',
-          message: `${entryDate} tarihli hasılat başarıyla kaydedildi! (Toplam: ${formatCurrency(grandTotal)})`
+          message: `${entryDate} tarihli hasılat ve kredi kartı komisyon tutarları başarıyla kaydedildi! (Toplam Ciro: ${formatCurrency(grandTotal)}, Toplam Komisyon: ${formatCurrency(combinedKomisyon)})`
         });
         // Clear fields
         setDkNakit('');
         setDkKart('');
+        setDkKomisyon('');
         setPalmNakit('');
         setPalmKart('');
+        setPalmKomisyon('');
         // Reload tracking
         loadTracking();
       } else {
@@ -242,7 +270,7 @@ export default function SalesManagement() {
                   <h3 className="text-sm font-bold text-slate-900">DENİZE KARŞI (DK)</h3>
                 </div>
                 <span className="text-xs font-bold text-blue-700 bg-blue-100/80 px-2.5 py-1 rounded-lg">
-                  Toplam: {formatCurrency(numDkTotal)}
+                  Toplam Hasılat: {formatCurrency(numDkTotal)}
                 </span>
               </div>
 
@@ -267,7 +295,7 @@ export default function SalesManagement() {
 
                 <div>
                   <label className="block text-[11px] font-bold text-slate-600 uppercase mb-1.5 flex items-center gap-1">
-                    <CreditCard className="w-3.5 h-3.5 text-blue-600" /> DK Kart Satış
+                    <CreditCard className="w-3.5 h-3.5 text-blue-600" /> DK Kart Satış (Brüt)
                   </label>
                   <div className="relative">
                     <input
@@ -283,6 +311,35 @@ export default function SalesManagement() {
                   </div>
                 </div>
               </div>
+
+              {/* DK Kredi Kartı Komisyon Tutarı */}
+              <div className="p-3 bg-blue-100/50 rounded-xl border border-blue-200 space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-[11px] font-bold text-blue-950 uppercase flex items-center gap-1.5">
+                    <Percent className="w-3.5 h-3.5 text-blue-700" />
+                    <span>DK Kredi Kartı Komisyon Tutarı (TL)</span>
+                  </label>
+                  <span className="text-[10px] font-semibold text-blue-700">Bankanın Kestiği Tutar</span>
+                </div>
+                <div className="relative">
+                  <input
+                    type="number"
+                    step="any"
+                    min="0"
+                    placeholder="0.00"
+                    value={dkKomisyon}
+                    onChange={(e) => setDkKomisyon(e.target.value)}
+                    className="w-full pl-3 pr-8 py-2 bg-white border border-blue-300 rounded-lg text-sm font-bold text-blue-900 focus:ring-2 focus:ring-blue-500 outline-none"
+                  />
+                  <span className="absolute right-3 top-2 text-xs font-bold text-blue-400">₺</span>
+                </div>
+                {numDkKart > 0 && (
+                  <div className="flex items-center justify-between text-[11px] font-semibold text-blue-900 pt-1 border-t border-blue-200/60">
+                    <span>DK Net Bankaya Kalan:</span>
+                    <span className="font-extrabold text-blue-700">{formatCurrency(numDkNetKart)}</span>
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* PALM BEACH CARD */}
@@ -293,7 +350,7 @@ export default function SalesManagement() {
                   <h3 className="text-sm font-bold text-slate-900">PALM BEACH</h3>
                 </div>
                 <span className="text-xs font-bold text-emerald-700 bg-emerald-100/80 px-2.5 py-1 rounded-lg">
-                  Toplam: {formatCurrency(numPalmTotal)}
+                  Toplam Hasılat: {formatCurrency(numPalmTotal)}
                 </span>
               </div>
 
@@ -318,7 +375,7 @@ export default function SalesManagement() {
 
                 <div>
                   <label className="block text-[11px] font-bold text-slate-600 uppercase mb-1.5 flex items-center gap-1">
-                    <CreditCard className="w-3.5 h-3.5 text-emerald-600" /> Palm Kart Satış
+                    <CreditCard className="w-3.5 h-3.5 text-emerald-600" /> Palm Kart Satış (Brüt)
                   </label>
                   <div className="relative">
                     <input
@@ -333,6 +390,35 @@ export default function SalesManagement() {
                     <span className="absolute right-3 top-2.5 text-xs font-bold text-slate-400">₺</span>
                   </div>
                 </div>
+              </div>
+
+              {/* Palm Kredi Kartı Komisyon Tutarı */}
+              <div className="p-3 bg-emerald-100/50 rounded-xl border border-emerald-200 space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-[11px] font-bold text-emerald-950 uppercase flex items-center gap-1.5">
+                    <Percent className="w-3.5 h-3.5 text-emerald-700" />
+                    <span>Palm Kredi Kartı Komisyon Tutarı (TL)</span>
+                  </label>
+                  <span className="text-[10px] font-semibold text-emerald-700">Bankanın Kestiği Tutar</span>
+                </div>
+                <div className="relative">
+                  <input
+                    type="number"
+                    step="any"
+                    min="0"
+                    placeholder="0.00"
+                    value={palmKomisyon}
+                    onChange={(e) => setPalmKomisyon(e.target.value)}
+                    className="w-full pl-3 pr-8 py-2 bg-white border border-emerald-300 rounded-lg text-sm font-bold text-emerald-900 focus:ring-2 focus:ring-emerald-500 outline-none"
+                  />
+                  <span className="absolute right-3 top-2 text-xs font-bold text-emerald-400">₺</span>
+                </div>
+                {numPalmKart > 0 && (
+                  <div className="flex items-center justify-between text-[11px] font-semibold text-emerald-900 pt-1 border-t border-emerald-200/60">
+                    <span>Palm Net Bankaya Kalan:</span>
+                    <span className="font-extrabold text-emerald-700">{formatCurrency(numPalmNetKart)}</span>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -357,6 +443,16 @@ export default function SalesManagement() {
               <span className="px-3 py-1.5 rounded-xl bg-slate-200/80 text-[11px] font-bold text-slate-700">
                 Ortak Kart: <span className="text-slate-900">{formatCurrency(combinedKart)}</span>
               </span>
+              {combinedKomisyon > 0 && (
+                <span className="px-3 py-1.5 rounded-xl bg-rose-100 text-[11px] font-bold text-rose-800">
+                  Komisyon: -{formatCurrency(combinedKomisyon)}
+                </span>
+              )}
+              {combinedKart > 0 && (
+                <span className="px-3 py-1.5 rounded-xl bg-blue-100 text-[11px] font-bold text-blue-900">
+                  Net Banka: {formatCurrency(combinedNetKart)}
+                </span>
+              )}
               <span className="px-3 py-1.5 rounded-xl bg-emerald-100 text-[11px] font-black text-emerald-800">
                 Toplam Ciro: {formatCurrency(grandTotal)}
               </span>

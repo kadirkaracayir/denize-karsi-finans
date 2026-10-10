@@ -169,10 +169,10 @@ export default function DayCloseModal({ isOpen, onClose, date = '2026-10-08', on
                       <span className="font-semibold text-slate-900">{formatCurrency(f?.dkKart?.brut ?? f?.dk?.kart)}</span>
                     </div>
                     <div className="flex justify-between text-amber-700">
-                      <span>Komisyon (%{f?.dkKart?.komisyonOrani ?? 2.5}):</span>
+                      <span>Komisyon Tutarı:</span>
                       <span className="font-semibold">-{formatCurrency(f?.dkKart?.komisyonTutari || 0)}</span>
                     </div>
-                    {(f?.dkKart?.oranFarki !== 0) && (
+                    {(f?.dkKart?.oranFarki !== 0 && f?.dkKart?.oranFarki !== undefined) && (
                       <div className="flex justify-between text-slate-500 text-[11px]">
                         <span>Oran Farkı:</span>
                         <span className="font-semibold">{formatCurrency(f?.dkKart?.oranFarki || 0)}</span>
@@ -201,10 +201,10 @@ export default function DayCloseModal({ isOpen, onClose, date = '2026-10-08', on
                       <span className="font-semibold text-slate-900">{formatCurrency(f?.palmKart?.brut ?? f?.palm?.kart)}</span>
                     </div>
                     <div className="flex justify-between text-amber-700">
-                      <span>Komisyon (%{f?.palmKart?.komisyonOrani ?? 2.5}):</span>
+                      <span>Komisyon Tutarı:</span>
                       <span className="font-semibold">-{formatCurrency(f?.palmKart?.komisyonTutari || 0)}</span>
                     </div>
-                    {(f?.palmKart?.oranFarki !== 0) && (
+                    {(f?.palmKart?.oranFarki !== 0 && f?.palmKart?.oranFarki !== undefined) && (
                       <div className="flex justify-between text-slate-500 text-[11px]">
                         <span>Oran Farkı:</span>
                         <span className="font-semibold">{formatCurrency(f?.palmKart?.oranFarki || 0)}</span>

@@ -85,22 +85,42 @@ router.get('/tracking', authenticateToken, (req, res) => {
         }
       });
 
+      const commRows = db.prepare(`
+        SELECT business_id, commission_amount
+        FROM daily_card_settlements
+        WHERE date = ?
+      `).all(dateStr);
+
+      let dk_komisyon = 0, palm_komisyon = 0;
+      commRows.forEach(c => {
+        if (c.business_id === 'DK') dk_komisyon = c.commission_amount || 0;
+        if (c.business_id === 'PALM') palm_komisyon = c.commission_amount || 0;
+      });
+
       const dk_total = dk_nakit + dk_kart;
       const palm_total = palm_nakit + palm_kart;
       const total_nakit = dk_nakit + palm_nakit;
       const total_kart = dk_kart + palm_kart;
+      const total_komisyon = dk_komisyon + palm_komisyon;
+      const net_kart = Math.max(0, total_kart - total_komisyon);
       const grand_total = dk_total + palm_total;
 
       return {
         date: dateStr,
         dk_nakit,
         dk_kart,
+        dk_komisyon,
+        dk_net_kart: Math.max(0, dk_kart - dk_komisyon),
         dk_total,
         palm_nakit,
         palm_kart,
+        palm_komisyon,
+        palm_net_kart: Math.max(0, palm_kart - palm_komisyon),
         palm_total,
         total_nakit,
         total_kart,
+        total_komisyon,
+        net_kart,
         grand_total
       };
     };
@@ -278,6 +298,7 @@ router.post(
         if (dk) {
           const dkNakit = parseFloat(dk.nakit) || 0;
           const dkKart = parseFloat(dk.kart) || 0;
+          const dkKomisyon = parseFloat(dk.komisyon ?? dk.commission_amount) || 0;
           const dkDesc = dk.description || 'DK Günlük Satış Hasılatı';
           if (dkNakit > 0) {
             insertSale.run('DK', date, 'NAKIT', dkNakit, dkDesc, req.user.id);
@@ -289,10 +310,21 @@ router.post(
             totalInserted++;
             totalAmount += dkKart;
           }
+          if (dkKomisyon > 0 || dkKart > 0) {
+            db.prepare(`
+              INSERT INTO daily_card_settlements (business_id, date, commission_rate, rate_difference, commission_amount, notes, created_by, updated_at)
+              VALUES ('DK', ?, 0, 0, ?, 'Hızlı Satış Komisyon Tutarı', ?, CURRENT_TIMESTAMP)
+              ON CONFLICT(business_id, date) DO UPDATE SET
+                commission_amount = excluded.commission_amount,
+                notes = excluded.notes,
+                updated_at = CURRENT_TIMESTAMP
+            `).run(date, dkKomisyon, req.user.id);
+          }
         }
         if (palm) {
           const palmNakit = parseFloat(palm.nakit) || 0;
           const palmKart = parseFloat(palm.kart) || 0;
+          const palmKomisyon = parseFloat(palm.komisyon ?? palm.commission_amount) || 0;
           const palmDesc = palm.description || 'Palm Günlük Satış Hasılatı';
           if (palmNakit > 0) {
             insertSale.run('PALM', date, 'NAKIT', palmNakit, palmDesc, req.user.id);
@@ -303,6 +335,16 @@ router.post(
             insertSale.run('PALM', date, 'KART', palmKart, palmDesc, req.user.id);
             totalInserted++;
             totalAmount += palmKart;
+          }
+          if (palmKomisyon > 0 || palmKart > 0) {
+            db.prepare(`
+              INSERT INTO daily_card_settlements (business_id, date, commission_rate, rate_difference, commission_amount, notes, created_by, updated_at)
+              VALUES ('PALM', ?, 0, 0, ?, 'Hızlı Satış Komisyon Tutarı', ?, CURRENT_TIMESTAMP)
+              ON CONFLICT(business_id, date) DO UPDATE SET
+                commission_amount = excluded.commission_amount,
+                notes = excluded.notes,
+                updated_at = CURRENT_TIMESTAMP
+            `).run(date, palmKomisyon, req.user.id);
           }
         }
       } 

@@ -795,12 +795,11 @@ export default function Dashboard({ onNavigate, onOpenQuickSale, onOpenQuickExpe
                 </div>
                 <div className="flex justify-between items-center text-amber-700 bg-amber-50/70 p-2 rounded-lg border border-amber-100">
                   <div className="flex items-center space-x-1">
-                    <span>Komisyon:</span>
-                    <span className="text-[10px] text-slate-500">(%{f?.dkKart?.komisyonOrani ?? 2.5})</span>
+                    <span className="font-semibold">Komisyon Tutarı:</span>
                   </div>
                   <span className="font-bold">-{formatCurrency(f?.dkKart?.komisyonTutari || 0)}</span>
                 </div>
-                {f?.dkKart?.oranFarki !== 0 && (
+                {(f?.dkKart?.oranFarki !== 0 && f?.dkKart?.oranFarki !== undefined) && (
                   <div className="flex justify-between items-center text-slate-600">
                     <span>Gün Sonu Oran Farkı:</span>
                     <span className={`font-semibold ${(f?.dkKart?.oranFarki || 0) < 0 ? 'text-rose-600' : 'text-slate-700'}`}>
@@ -858,12 +857,11 @@ export default function Dashboard({ onNavigate, onOpenQuickSale, onOpenQuickExpe
                 </div>
                 <div className="flex justify-between items-center text-amber-700 bg-amber-50/70 p-2 rounded-lg border border-amber-100">
                   <div className="flex items-center space-x-1">
-                    <span>Komisyon:</span>
-                    <span className="text-[10px] text-slate-500">(%{f?.palmKart?.komisyonOrani ?? 2.5})</span>
+                    <span className="font-semibold">Komisyon Tutarı:</span>
                   </div>
                   <span className="font-bold">-{formatCurrency(f?.palmKart?.komisyonTutari || 0)}</span>
                 </div>
-                {f?.palmKart?.oranFarki !== 0 && (
+                {(f?.palmKart?.oranFarki !== 0 && f?.palmKart?.oranFarki !== undefined) && (
                   <div className="flex justify-between items-center text-slate-600">
                     <span>Gün Sonu Oran Farkı:</span>
                     <span className={`font-semibold ${(f?.palmKart?.oranFarki || 0) < 0 ? 'text-rose-600' : 'text-slate-700'}`}>

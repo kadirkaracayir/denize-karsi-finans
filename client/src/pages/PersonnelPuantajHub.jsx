@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { 
   Users, 
   Clock, 
@@ -25,7 +25,8 @@ import {
   CreditCard,
   Save,
   CheckCircle,
-  ArrowLeftRight
+  ArrowLeftRight,
+  Search
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useFilters } from '../context/FilterContext';
@@ -119,6 +120,25 @@ export default function PersonnelPuantajHub() {
   // In-line daily time form edits state: { [empId]: { check_in_time, check_out_time, status, hours_worked, accrual_amount, notes } }
   const [timeRowState, setTimeRowState] = useState({});
   const [savingRowId, setSavingRowId] = useState(null);
+
+  // Günlük Puantaj Hızlı Personel Arama & Filtreleme
+  const [dailySearchQuery, setDailySearchQuery] = useState('');
+  const [selectedEmployeeFilter, setSelectedEmployeeFilter] = useState('');
+
+  const filteredDailyAttendance = useMemo(() => {
+    let list = dailyAttendance;
+    if (selectedEmployeeFilter) {
+      list = list.filter(emp => String(emp.employee_id) === String(selectedEmployeeFilter));
+    }
+    if (dailySearchQuery.trim()) {
+      const q = dailySearchQuery.toLowerCase().trim();
+      list = list.filter(emp => 
+        (emp.employee_name || '').toLowerCase().includes(q) ||
+        (emp.employee_role || '').toLowerCase().includes(q)
+      );
+    }
+    return list;
+  }, [dailyAttendance, dailySearchQuery, selectedEmployeeFilter]);
 
   // Modals state
   const [showAddEmpModal, setShowAddEmpModal] = useState(false);
@@ -1055,7 +1075,59 @@ export default function PersonnelPuantajHub() {
               <table className="w-full min-w-[1050px] text-xs text-left border-collapse">
                 <thead className="bg-slate-100 text-slate-700 font-bold uppercase text-[10px] border-b border-slate-200 sticky top-0 z-20 shadow-xs">
                   <tr>
-                    <th className="py-3 px-3 sticky left-0 z-30 bg-slate-100 border-r border-slate-200 shadow-xs min-w-[160px]">Personel</th>
+                    {/* Personel Kolonu - Hızlı Seçim ve Arama Özellikli */}
+                    <th className="py-2.5 px-3 sticky left-0 z-30 bg-slate-100 border-r border-slate-200 shadow-xs min-w-[210px]">
+                      <div className="space-y-1.5">
+                        <div className="flex items-center justify-between">
+                          <span className="font-extrabold text-slate-800 text-xs">Personel</span>
+                          {(dailySearchQuery || selectedEmployeeFilter) && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setDailySearchQuery('');
+                                setSelectedEmployeeFilter('');
+                              }}
+                              className="text-[9px] text-rose-600 hover:text-rose-800 font-bold underline cursor-pointer normal-case"
+                              title="Filtreyi Temizle"
+                            >
+                              Tümünü Göster
+                            </button>
+                          )}
+                        </div>
+
+                        {/* Personel Kolonundan Hızlı Seçme Dropdown'ı */}
+                        <select
+                          value={selectedEmployeeFilter}
+                          onChange={(e) => {
+                            setSelectedEmployeeFilter(e.target.value);
+                            if (e.target.value) setDailySearchQuery('');
+                          }}
+                          className="w-full py-1 px-1.5 bg-white border border-slate-300 rounded text-[11px] font-bold text-slate-800 normal-case focus:outline-hidden focus:ring-1 focus:ring-blue-500 cursor-pointer shadow-2xs"
+                        >
+                          <option value="">⚡ Personel Seç ({dailyAttendance.length})</option>
+                          {dailyAttendance.map(emp => (
+                            <option key={emp.employee_id} value={emp.employee_id}>
+                              {emp.employee_name} ({emp.employee_role || 'Ortak'})
+                            </option>
+                          ))}
+                        </select>
+
+                        {/* Personel Kolonundan Hızlı Arama */}
+                        <div className="relative">
+                          <Search className="w-3 h-3 text-slate-400 absolute left-2 top-1/2 -translate-y-1/2 pointer-events-none" />
+                          <input
+                            type="text"
+                            value={dailySearchQuery}
+                            onChange={(e) => {
+                              setDailySearchQuery(e.target.value);
+                              if (e.target.value) setSelectedEmployeeFilter('');
+                            }}
+                            placeholder="İsimle Hızlı Ara..."
+                            className="w-full pl-6 pr-2 py-1 bg-white border border-slate-300 rounded text-[11px] font-medium text-slate-900 placeholder:text-slate-400 focus:outline-hidden focus:ring-1 focus:ring-blue-500 normal-case shadow-2xs"
+                          />
+                        </div>
+                      </div>
+                    </th>
                     <th className="py-3 px-3 min-w-[150px]">Durum (İşaretle)</th>
                     <th className="py-3 px-3 text-center text-emerald-800 bg-emerald-50/60 font-black min-w-[110px]">🟢 Giriş Saati</th>
                     <th className="py-3 px-3 text-center text-rose-800 bg-rose-50/60 font-black min-w-[110px]">🔴 Çıkış Saati</th>
@@ -1067,7 +1139,27 @@ export default function PersonnelPuantajHub() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {dailyAttendance.map((emp) => {
+                  {filteredDailyAttendance.length === 0 ? (
+                    <tr>
+                      <td colSpan={9} className="py-12 text-center text-slate-400 bg-white">
+                        <div className="space-y-1">
+                          <p className="font-bold text-slate-600">Aradığınız kriterde personel bulunamadı.</p>
+                          <p className="text-xs text-slate-400">"{dailySearchQuery}" araması için sonuç yok.</p>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setDailySearchQuery('');
+                              setSelectedEmployeeFilter('');
+                            }}
+                            className="mt-2 px-3 py-1 bg-blue-50 text-blue-700 font-bold rounded-lg text-xs hover:bg-blue-100 transition-colors cursor-pointer"
+                          >
+                            Tüm Personelleri Listele ({dailyAttendance.length})
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredDailyAttendance.map((emp) => {
                     const row = timeRowState[emp.employee_id] || {
                       check_in_time: emp.check_in_time || '00:00',
                       check_out_time: emp.check_out_time || '00:00',
@@ -1223,7 +1315,7 @@ export default function PersonnelPuantajHub() {
                         </td>
                       </tr>
                     );
-                  })}
+                  }))}
                 </tbody>
               </table>
             </div>

@@ -186,10 +186,10 @@ export default function CashManagement({ onOpenCashTx, onNavigate }) {
                 <span className="font-bold text-slate-900">{formatCurrency(s?.dkKart?.brut ?? s?.dk?.kart)}</span>
               </div>
               <div className="flex justify-between text-amber-700">
-                <span>Komisyon (%{s?.dkKart?.komisyonOrani ?? 2.5}):</span>
+                <span>Komisyon Tutarı:</span>
                 <span className="font-semibold">-{formatCurrency(s?.dkKart?.komisyonTutari || 0)}</span>
               </div>
-              {s?.dkKart?.oranFarki !== 0 && (
+              {(s?.dkKart?.oranFarki !== 0 && s?.dkKart?.oranFarki !== undefined) && (
                 <div className="flex justify-between text-slate-500">
                   <span>Gün Sonu Oran Farkı:</span>
                   <span>{formatCurrency(s?.dkKart?.oranFarki || 0)}</span>
@@ -230,10 +230,10 @@ export default function CashManagement({ onOpenCashTx, onNavigate }) {
                 <span className="font-bold text-slate-900">{formatCurrency(s?.palmKart?.brut ?? s?.palm?.kart)}</span>
               </div>
               <div className="flex justify-between text-amber-700">
-                <span>Komisyon (%{s?.palmKart?.komisyonOrani ?? 2.5}):</span>
+                <span>Komisyon Tutarı:</span>
                 <span className="font-semibold">-{formatCurrency(s?.palmKart?.komisyonTutari || 0)}</span>
               </div>
-              {s?.palmKart?.oranFarki !== 0 && (
+              {(s?.palmKart?.oranFarki !== 0 && s?.palmKart?.oranFarki !== undefined) && (
                 <div className="flex justify-between text-slate-500">
                   <span>Gün Sonu Oran Farkı:</span>
                   <span>{formatCurrency(s?.palmKart?.oranFarki || 0)}</span>
