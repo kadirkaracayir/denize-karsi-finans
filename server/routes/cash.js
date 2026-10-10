@@ -10,8 +10,10 @@ const router = express.Router();
 // Cash & Card Summary
 router.get('/summary', authenticateToken, (req, res) => {
   try {
-    const today = req.query.date || new Date().toISOString().split('T')[0];
-    const summary = getFinancialSummary(today, today);
+    const today = new Date().toISOString().split('T')[0];
+    const startDate = req.query.startDate || req.query.date || today;
+    const endDate = req.query.endDate || req.query.date || today;
+    const summary = getFinancialSummary(startDate, endDate);
     return res.json({ success: true, summary: summary.finansOzeti });
   } catch (err) {
     console.error('Cash summary error:', err);

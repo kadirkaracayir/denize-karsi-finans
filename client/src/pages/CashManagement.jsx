@@ -20,6 +20,10 @@ import ReasonModal from '../components/modals/ReasonModal';
 
 export default function CashManagement({ onOpenCashTx, onNavigate }) {
   const { selectedBusiness, period, customStartDate, customEndDate, refreshKey, triggerRefresh } = useFilters();
+  const todayStr = new Date().toISOString().split('T')[0];
+  const [startDate, setStartDate] = useState(customStartDate || '2026-10-01');
+  const [endDate, setEndDate] = useState(customEndDate || todayStr);
+
   const [summary, setSummary] = useState(null);
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -33,11 +37,11 @@ export default function CashManagement({ onOpenCashTx, onNavigate }) {
   useEffect(() => {
     setLoading(true);
     Promise.all([
-      api.get('/cash/summary', { date: customEndDate }),
+      api.get('/cash/summary', { startDate, endDate }),
       api.get('/cash/transactions', {
         business_id: selectedBusiness,
-        startDate: customStartDate,
-        endDate: customEndDate,
+        startDate,
+        endDate,
         type: filterType,
       })
     ])
@@ -47,7 +51,7 @@ export default function CashManagement({ onOpenCashTx, onNavigate }) {
       })
       .catch(console.error)
       .finally(() => setLoading(false));
-  }, [selectedBusiness, customStartDate, customEndDate, filterType, refreshKey]);
+  }, [selectedBusiness, startDate, endDate, filterType, refreshKey]);
 
   const handleCancelClick = (tx) => {
     setTargetCancelTx(tx);
@@ -123,6 +127,71 @@ export default function CashManagement({ onOpenCashTx, onNavigate }) {
         </div>
       )}
 
+      {/* Date Filter Bar */}
+      <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs flex flex-wrap items-center justify-between gap-3 text-xs">
+        <div className="flex items-center space-x-2 flex-wrap gap-y-2">
+          <div className="flex items-center space-x-1.5 text-slate-700 font-bold">
+            <Calendar className="w-4 h-4 text-emerald-600" />
+            <span>Kasa Dönemi:</span>
+          </div>
+
+          <div className="flex items-center space-x-2 bg-slate-50 p-1.5 rounded-lg border border-slate-200">
+            <input
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              className="bg-transparent text-xs font-bold text-slate-800 focus:outline-none"
+            />
+            <span className="text-slate-400 font-bold">—</span>
+            <input
+              type="date"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              className="bg-transparent text-xs font-bold text-slate-800 focus:outline-none"
+            />
+          </div>
+
+          <button
+            type="button"
+            onClick={() => {
+              setStartDate('2026-10-01');
+              setEndDate(todayStr);
+            }}
+            className="px-2.5 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-800 border border-blue-200 rounded-lg text-xs font-bold cursor-pointer transition-colors"
+          >
+            📅 Tüm Ekim
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setStartDate(todayStr);
+              setEndDate(todayStr);
+            }}
+            className="px-2.5 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 rounded-lg text-xs font-bold cursor-pointer transition-colors"
+          >
+            ⚡ Bugün
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setStartDate('2026-10-05');
+              setEndDate('2026-10-08');
+            }}
+            className="px-2.5 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 rounded-lg text-xs font-bold cursor-pointer transition-colors"
+          >
+            🌟 05-08 Ekim
+          </button>
+        </div>
+
+        <button
+          onClick={triggerRefresh}
+          className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
+          title="Verileri Yenile"
+        >
+          <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin text-emerald-600' : ''}`} />
+        </button>
+      </div>
+
       {/* Single Unified Cash Register Banner */}
       <div className="bg-gradient-to-r from-emerald-900 via-teal-900 to-slate-900 text-white rounded-2xl p-5 shadow-lg relative overflow-hidden">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
@@ -140,7 +209,7 @@ export default function CashManagement({ onOpenCashTx, onNavigate }) {
                 </span>
               </div>
               <p className="text-xs text-slate-300 mt-0.5">
-                DK ve Palm nakit satışları tek bir fiziki/merkezi kasada toplanır ve harcamalar bu kasadan karşılanır.
+                DK ve Palm nakit satışları tek bir merkezi kasada toplanır. (Seçili Dönem: <strong className="text-emerald-300 font-bold">{formatDateTR(startDate)} — {formatDateTR(endDate)}</strong>)
               </p>
             </div>
           </div>
