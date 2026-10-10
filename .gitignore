@@ -3,9 +3,12 @@ client/node_modules/
 .env
 *.log
 
-# SQLite WAL and lock files
+# SQLite database files - do not track in Git to prevent overwriting live database on deploy
+data/*.db
 data/*.db-wal
 data/*.db-shm
+*.db
+*.sqlite
 
 # OS generated files
 .DS_Store

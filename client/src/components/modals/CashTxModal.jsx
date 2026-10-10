@@ -1,11 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, ArrowUpRight, ArrowDownLeft, ArrowLeftRight, Check, Wallet, Building2, Info } from 'lucide-react';
 import { api } from '../../services/api';
 import { useFilters } from '../../context/FilterContext';
 import ReasonModal from './ReasonModal';
 
-export default function CashTxModal({ isOpen, onClose, defaultType = 'IN', onSuccess }) {
-  const { triggerRefresh } = useFilters();
+export default function CashTxModal({ isOpen, onClose, defaultType = 'IN', defaultDate = null, onSuccess }) {
+  const { customEndDate, triggerRefresh } = useFilters();
+  const todayStr = new Date().toISOString().split('T')[0];
   const [txType, setTxType] = useState(defaultType); // 'IN', 'OUT', 'TRANSFER'
   
   // Selected Account for IN/OUT: 'KASA' | 'DK_BANKA' | 'PALM_BANKA'
@@ -15,7 +16,7 @@ export default function CashTxModal({ isOpen, onClose, defaultType = 'IN', onSuc
   const [transferFrom, setTransferFrom] = useState('DK_BANKA');
   const [transferTo, setTransferTo] = useState('KASA');
 
-  const [date, setDate] = useState('2026-10-08');
+  const [date, setDate] = useState(defaultDate || customEndDate || todayStr);
   const [subType, setSubType] = useState('Sermaye');
   const [amount, setAmount] = useState('');
   const [description, setDescription] = useState('');
@@ -23,6 +24,20 @@ export default function CashTxModal({ isOpen, onClose, defaultType = 'IN', onSuc
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [showReasonModal, setShowReasonModal] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      setTxType(defaultType);
+      if (defaultDate) {
+        setDate(defaultDate);
+      } else if (!date) {
+        setDate(customEndDate || todayStr);
+      }
+      setAmount('');
+      setDescription('');
+      setError('');
+    }
+  }, [isOpen, defaultType, defaultDate]);
 
   if (!isOpen) return null;
 
@@ -285,7 +300,9 @@ export default function CashTxModal({ isOpen, onClose, defaultType = 'IN', onSuc
             {/* Date and Sub Type */}
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs font-semibold uppercase text-slate-500 mb-1">Tarih</label>
+                <label className="block text-xs font-semibold uppercase text-slate-500 mb-1">
+                  İşlem Tarihi <span className="text-[10px] text-indigo-600 font-normal lowercase">(geçmiş/güncel)</span>
+                </label>
                 <input
                   type="date"
                   value={date}

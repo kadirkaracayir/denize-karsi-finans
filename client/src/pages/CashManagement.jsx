@@ -19,10 +19,13 @@ import { formatCurrency, formatDateTR } from '../utils/formatters';
 import ReasonModal from '../components/modals/ReasonModal';
 
 export default function CashManagement({ onOpenCashTx, onNavigate }) {
-  const { selectedBusiness, period, customStartDate, customEndDate, refreshKey, triggerRefresh } = useFilters();
+  const { selectedBusiness, period, customEndDate, refreshKey, triggerRefresh } = useFilters();
   const todayStr = new Date().toISOString().split('T')[0];
-  const [startDate, setStartDate] = useState(customStartDate || '2026-10-01');
-  const [endDate, setEndDate] = useState(customEndDate || todayStr);
+  // Default to full month so monthly cash contributions and totals are visible immediately
+  const [startDate, setStartDate] = useState('2026-10-01');
+  const [endDate, setEndDate] = useState(todayStr);
+  // Default to showing all historical transactions so no past entry is hidden by date filter
+  const [showAllDates, setShowAllDates] = useState(true);
 
   const [summary, setSummary] = useState(null);
   const [transactions, setTransactions] = useState([]);
@@ -36,14 +39,18 @@ export default function CashManagement({ onOpenCashTx, onNavigate }) {
 
   useEffect(() => {
     setLoading(true);
+    const txParams = {
+      business_id: selectedBusiness,
+      type: filterType,
+    };
+    if (!showAllDates) {
+      txParams.startDate = startDate;
+      txParams.endDate = endDate;
+    }
+
     Promise.all([
       api.get('/cash/summary', { startDate, endDate }),
-      api.get('/cash/transactions', {
-        business_id: selectedBusiness,
-        startDate,
-        endDate,
-        type: filterType,
-      })
+      api.get('/cash/transactions', txParams)
     ])
       .then(([sumRes, txRes]) => {
         if (sumRes.success) setSummary(sumRes.summary);
@@ -51,7 +58,7 @@ export default function CashManagement({ onOpenCashTx, onNavigate }) {
       })
       .catch(console.error)
       .finally(() => setLoading(false));
-  }, [selectedBusiness, startDate, endDate, filterType, refreshKey]);
+  }, [selectedBusiness, startDate, endDate, showAllDates, filterType, refreshKey]);
 
   const handleCancelClick = (tx) => {
     setTargetCancelTx(tx);
@@ -154,10 +161,28 @@ export default function CashManagement({ onOpenCashTx, onNavigate }) {
           <button
             type="button"
             onClick={() => {
+              setShowAllDates(true);
+            }}
+            className={`px-2.5 py-1.5 border rounded-lg text-xs font-bold cursor-pointer transition-colors ${
+              showAllDates
+                ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs'
+                : 'bg-indigo-50 hover:bg-indigo-100 text-indigo-800 border-indigo-200'
+            }`}
+          >
+            🌐 Tüm Geçmiş (Filtresiz)
+          </button>
+          <button
+            type="button"
+            onClick={() => {
               setStartDate('2026-10-01');
               setEndDate(todayStr);
+              setShowAllDates(false);
             }}
-            className="px-2.5 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-800 border border-blue-200 rounded-lg text-xs font-bold cursor-pointer transition-colors"
+            className={`px-2.5 py-1.5 border rounded-lg text-xs font-bold cursor-pointer transition-colors ${
+              !showAllDates && startDate === '2026-10-01' && endDate === todayStr
+                ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
+                : 'bg-blue-50 hover:bg-blue-100 text-blue-800 border-blue-200'
+            }`}
           >
             📅 Tüm Ekim
           </button>
@@ -166,8 +191,13 @@ export default function CashManagement({ onOpenCashTx, onNavigate }) {
             onClick={() => {
               setStartDate(todayStr);
               setEndDate(todayStr);
+              setShowAllDates(false);
             }}
-            className="px-2.5 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 rounded-lg text-xs font-bold cursor-pointer transition-colors"
+            className={`px-2.5 py-1.5 border rounded-lg text-xs font-bold cursor-pointer transition-colors ${
+              !showAllDates && startDate === todayStr && endDate === todayStr
+                ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
+                : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border-emerald-200'
+            }`}
           >
             ⚡ Bugün
           </button>
@@ -176,8 +206,13 @@ export default function CashManagement({ onOpenCashTx, onNavigate }) {
             onClick={() => {
               setStartDate('2026-10-05');
               setEndDate('2026-10-08');
+              setShowAllDates(false);
             }}
-            className="px-2.5 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 rounded-lg text-xs font-bold cursor-pointer transition-colors"
+            className={`px-2.5 py-1.5 border rounded-lg text-xs font-bold cursor-pointer transition-colors ${
+              !showAllDates && startDate === '2026-10-05' && endDate === '2026-10-08'
+                ? 'bg-amber-600 text-white border-amber-600 shadow-xs'
+                : 'bg-amber-50 hover:bg-amber-100 text-amber-800 border-amber-200'
+            }`}
           >
             🌟 05-08 Ekim
           </button>
@@ -331,7 +366,19 @@ export default function CashManagement({ onOpenCashTx, onNavigate }) {
       {/* Cash Movements Table */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
         <div className="p-4 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3 bg-slate-50/50">
-          <h3 className="font-bold text-sm text-slate-800">Para Giriş, Çıkış ve Transfer Kayıtları</h3>
+          <div>
+            <div className="flex items-center space-x-2">
+              <h3 className="font-bold text-sm text-slate-800">Para Giriş, Çıkış ve Transfer Kayıtları</h3>
+              <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-slate-200 text-slate-700">
+                {transactions.length} işlem
+              </span>
+            </div>
+            <p className="text-[11px] text-slate-500 mt-0.5">
+              {showAllDates
+                ? '🌐 Tüm geçmiş ve güncel kayıtlar listeleniyor.'
+                : `📅 ${formatDateTR(startDate)} — ${formatDateTR(endDate)} tarihleri arası listeleniyor.`}
+            </p>
+          </div>
           <div className="flex items-center space-x-1 bg-slate-100 p-1 rounded-xl text-xs">
             <button
               onClick={() => setFilterType('')}

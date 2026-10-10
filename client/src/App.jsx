@@ -43,8 +43,12 @@ export default function App() {
   // Quick Action Modals
   const [showQuickSale, setShowQuickSale] = useState(false);
   const [showQuickExpense, setShowQuickExpense] = useState(false);
-  const [cashTxConfig, setCashTxConfig] = useState({ isOpen: false, type: 'IN' });
+  const [cashTxConfig, setCashTxConfig] = useState({ isOpen: false, type: 'IN', defaultDate: null });
   const [dayCloseDate, setDayCloseDate] = useState(null);
+
+  const handleOpenCashTx = (type = 'IN', defaultDate = null) => {
+    setCashTxConfig({ isOpen: true, type, defaultDate });
+  };
 
   // Yükleme durumu
   if (isLoading) {
@@ -73,14 +77,15 @@ export default function App() {
             onNavigate={setActiveTab}
             onOpenQuickSale={() => setShowQuickSale(true)}
             onOpenQuickExpense={() => setShowQuickExpense(true)}
-            onOpenCashTx={(type = 'IN') => setCashTxConfig({ isOpen: true, type })}
+            onOpenCashTx={handleOpenCashTx}
             onOpenDayClose={(d = customEndDate) => setDayCloseDate(d || '2026-10-09')}
           />
         );
       case 'cash':
         return (
           <CashManagement
-            onOpenCashTx={(type = 'IN') => setCashTxConfig({ isOpen: true, type })}
+            onOpenCashTx={handleOpenCashTx}
+            onNavigate={setActiveTab}
           />
         );
       case 'cards':
@@ -102,7 +107,7 @@ export default function App() {
       case 'transfers':
         return (
           <Transfers
-            onOpenCashTx={(type = 'TRANSFER') => setCashTxConfig({ isOpen: true, type })}
+            onOpenCashTx={(type = 'TRANSFER', d = null) => handleOpenCashTx(type, d)}
           />
         );
       case 'closing':
@@ -123,7 +128,7 @@ export default function App() {
             onNavigate={setActiveTab}
             onOpenQuickSale={() => setShowQuickSale(true)}
             onOpenQuickExpense={() => setShowQuickExpense(true)}
-            onOpenCashTx={(type = 'IN') => setCashTxConfig({ isOpen: true, type })}
+            onOpenCashTx={handleOpenCashTx}
             onOpenDayClose={(d = customEndDate) => setDayCloseDate(d || '2026-10-09')}
           />
         );
@@ -146,7 +151,7 @@ export default function App() {
           onOpenMobileMenu={() => setIsMobileMenuOpen(true)}
           onOpenQuickSale={() => setShowQuickSale(true)}
           onOpenQuickExpense={() => setShowQuickExpense(true)}
-          onOpenCashTx={(type = 'IN') => setCashTxConfig({ isOpen: true, type })}
+          onOpenCashTx={handleOpenCashTx}
           onOpenDayClose={(d = customEndDate) => setDayCloseDate(d || '2026-10-09')}
         />
 
@@ -176,7 +181,8 @@ export default function App() {
       <CashTxModal
         isOpen={cashTxConfig.isOpen}
         defaultType={cashTxConfig.type}
-        onClose={() => setCashTxConfig({ isOpen: false, type: 'IN' })}
+        defaultDate={cashTxConfig.defaultDate || customEndDate}
+        onClose={() => setCashTxConfig({ isOpen: false, type: 'IN', defaultDate: null })}
       />
 
       <DayCloseModal
