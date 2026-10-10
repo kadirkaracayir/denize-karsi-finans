@@ -5,8 +5,13 @@ import crypto from 'node:crypto';
 import db from '../db/database.js';
 import { JWT_SECRET, authenticateToken } from '../middleware/auth.js';
 import { logAudit } from '../middleware/audit.js';
+import { sendPasswordResetEmail } from '../utils/mailer.js';
 
 const router = express.Router();
+
+// Sistem Kuralı: Bu finans uygulamasına sadece yetkili ana yönetici hesabı giriş yapabilir.
+const AUTHORIZED_EMAIL = 'cengizhankan53@hotmail.com';
+const AUTHORIZED_USERNAME = 'cengizhankan53';
 
 // In-Memory Brute-Force Rate Limiter for Login
 const loginAttempts = new Map(); // ip -> { count: number, blockedUntil: number }
@@ -56,6 +61,15 @@ router.post('/login', (req, res) => {
   }
 
   const cleanIdentifier = identifier.toLowerCase();
+
+  // Kural: Bu uygulamaya sadece cengizhankan53@hotmail.com giriş yapabilir
+  if (cleanIdentifier !== AUTHORIZED_EMAIL && cleanIdentifier !== AUTHORIZED_USERNAME) {
+    recordFailedLogin(ip);
+    return res.status(403).json({
+      success: false,
+      message: 'Bu finans uygulamasına sadece yetkili ana yönetici hesabı (cengizhankan53@hotmail.com) giriş yapabilir.'
+    });
+  }
 
   const user = db.prepare(`
     SELECT u.*, r.name as role_name
@@ -109,8 +123,8 @@ router.post('/login', (req, res) => {
   });
 });
 
-// 2. Forgot Password Request (Şifremi Unuttum)
-router.post('/forgot-password', (req, res) => {
+// 2. Forgot Password Request (Şifremi Unuttum) - Kod Mail Olarak Gönderilir
+router.post('/forgot-password', async (req, res) => {
   try {
     const { email } = req.body;
     if (!email || !email.trim()) {
@@ -118,6 +132,14 @@ router.post('/forgot-password', (req, res) => {
     }
 
     const cleanEmail = email.trim().toLowerCase();
+
+    // Kural: Şifre sıfırlama işlemi yalnızca cengizhankan53@hotmail.com için geçerlidir
+    if (cleanEmail !== AUTHORIZED_EMAIL) {
+      return res.status(403).json({ 
+        success: false, 
+        message: 'Şifre sıfırlama işlemi yalnızca yetkili ana yönetici hesabı (cengizhankan53@hotmail.com) için geçerlidir.' 
+      });
+    }
 
     const user = db.prepare('SELECT id, email, full_name FROM users WHERE lower(email) = ? AND is_active = 1').get(cleanEmail);
     if (!user) {
@@ -148,19 +170,28 @@ router.post('/forgot-password', (req, res) => {
       ipAddress: req.ip
     });
 
-    console.log(`🔑 Şifre Sıfırlama Kodu (${user.email}): ${code} (Geçerlilik: 15 Dakika)`);
+    // Send code to user's real email address via Hostinger SMTP
+    try {
+      await sendPasswordResetEmail(user.email, code);
+      console.log(`✉️ Şifre sıfırlama e-postası başarıyla gönderildi -> ${user.email}`);
+    } catch (mailErr) {
+      console.error('SMTP Gönderim Hatası:', mailErr);
+      return res.status(500).json({ 
+        success: false, 
+        message: 'Doğrulama kodu e-posta adresinize gönderilirken bir hata oluştu: ' + (mailErr.message || 'SMTP Hatası') 
+      });
+    }
 
+    // Güvenlik Kuralı: 'code' alanı API cevabında ASLA geri döndürülmez!
     return res.json({
       success: true,
-      message: 'Şifre sıfırlama doğrulama kodunuz oluşturuldu.',
+      message: `6 haneli doğrulama kodunuz ${user.email} e-posta adresinize gönderildi. Lütfen gelen kutunuzu (ve spam/önemsiz klasörünü) kontrol ediniz.`,
       email: user.email,
-      code,
-      token,
       expiresInMinutes: 15
     });
   } catch (err) {
     console.error('Forgot password error:', err);
-    return res.status(500).json({ success: false, message: 'Şifre sıfırlama talebi oluşturulamadı.' });
+    return res.status(500).json({ success: false, message: 'Şifre sıfırlama talebi oluşturulamadı: ' + err.message });
   }
 });
 
@@ -180,6 +211,13 @@ router.post('/reset-password', (req, res) => {
     const cleanEmail = email.trim().toLowerCase();
     const cleanCode = (code || '').trim();
     const cleanToken = (token || '').trim();
+
+    if (cleanEmail !== AUTHORIZED_EMAIL) {
+      return res.status(403).json({
+        success: false,
+        message: 'Şifre sıfırlama işlemi yalnızca yetkili ana yönetici hesabı (cengizhankan53@hotmail.com) için geçerlidir.'
+      });
+    }
 
     // Verify token/code
     const reset = db.prepare(`

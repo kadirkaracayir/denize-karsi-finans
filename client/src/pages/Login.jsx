@@ -57,11 +57,8 @@ export default function Login() {
       const res = await api.post('/auth/forgot-password', { email: forgotEmail.trim() });
       if (res.success) {
         setForgotStep(2);
-        setForgotSuccess('Doğrulama kodunuz oluşturuldu. Lütfen kodu ve yeni şifrenizi giriniz.');
-        // If code returned in dev/local mode, autofill or keep ready
-        if (res.code) {
-          setForgotCode(res.code);
-        }
+        setForgotSuccess(res.message || '6 haneli doğrulama kodunuz e-posta adresinize gönderildi. Lütfen gelen kutunuzu kontrol ediniz.');
+        setForgotCode('');
       } else {
         setForgotError(res.message || 'Doğrulama kodu gönderilemedi.');
       }
@@ -125,7 +122,7 @@ export default function Login() {
 
   const handleOpenForgot = () => {
     setForgotStep(1);
-    setForgotEmail(identifier.includes('@') ? identifier : '');
+    setForgotEmail(identifier.includes('@') ? identifier : 'cengizhankan53@hotmail.com');
     setForgotCode('');
     setNewPassword('');
     setConfirmPassword('');
@@ -175,7 +172,7 @@ export default function Login() {
                   type="text"
                   value={identifier}
                   onChange={(e) => setIdentifier(e.target.value)}
-                  placeholder="Kullanıcı adı veya e-posta"
+                  placeholder="cengizhankan53@hotmail.com"
                   required
                   autoComplete="username"
                   className="w-full px-3.5 py-2.5 pl-10 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent text-slate-800"
@@ -287,24 +284,27 @@ export default function Login() {
               {forgotStep === 1 && (
                 <form onSubmit={handleRequestResetCode} className="space-y-4">
                   <p className="text-xs text-slate-600">
-                    Sistemde kayıtlı e-posta adresinizi giriniz. Şifrenizi yenilemeniz için 6 haneli doğrulama kodu üretilecektir.
+                    Sistemde yetkili e-posta adresinizi giriniz. Şifrenizi yenilemeniz için 6 haneli güvenlik doğrulama kodu e-postanıza gönderilecektir.
                   </p>
 
                   <div>
                     <label className="block text-xs font-bold uppercase text-slate-600 mb-1.5">
-                      Kayıtlı E-posta Adresi
+                      Yetkili E-posta Adresi
                     </label>
                     <div className="relative">
                       <input
                         type="email"
                         value={forgotEmail}
                         onChange={(e) => setForgotEmail(e.target.value)}
-                        placeholder="ornek@alanadi.com"
+                        placeholder="cengizhankan53@hotmail.com"
                         required
                         className="w-full px-3.5 py-2.5 pl-10 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-blue-600 text-slate-800"
                       />
                       <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
                     </div>
+                    <span className="text-[10px] text-slate-400 mt-1 block">
+                      * Yalnızca ana yönetici hesabı (cengizhankan53@hotmail.com) için kod üretilir.
+                    </span>
                   </div>
 
                   <div className="flex items-center justify-end space-x-2 pt-2">
@@ -323,10 +323,10 @@ export default function Login() {
                       {forgotLoading ? (
                         <>
                           <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                          <span>Gönderiliyor...</span>
+                          <span>E-posta Gönderiliyor...</span>
                         </>
                       ) : (
-                        <span>Doğrulama Kodu İste →</span>
+                        <span>Doğrulama Kodu Gönder →</span>
                       )}
                     </button>
                   </div>
@@ -336,6 +336,16 @@ export default function Login() {
               {/* STEP 2: Enter code & new password */}
               {forgotStep === 2 && (
                 <form onSubmit={handleResetPassword} className="space-y-4">
+                  <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl text-xs text-blue-900 flex items-start space-x-2">
+                    <Mail className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
+                    <div>
+                      <span className="font-bold">E-postanızı Kontrol Ediniz:</span>
+                      <p className="mt-0.5 text-blue-800">
+                        <strong>{forgotEmail}</strong> adresinize 6 haneli güvenlik kodu gönderilmiştir. Lütfen gelen kutunuzu (ve gereksiz / spam klasörünü) kontrol ederek kodu giriniz.
+                      </p>
+                    </div>
+                  </div>
+
                   <div>
                     <label className="block text-xs font-bold uppercase text-slate-600 mb-1.5">
                       6 Haneli Doğrulama Kodu
