@@ -133,6 +133,47 @@ function getExpensesReport(startDate, endDate) {
   };
 }
 
+// Helper: Kasa Para Çıkışları Raporu (Ortaklar & Çekimler)
+function getCashOutReport(startDate, endDate) {
+  const transactions = db.prepare(`
+    SELECT 
+      id,
+      date,
+      sub_type,
+      source_account,
+      business_id,
+      amount,
+      description,
+      created_at
+    FROM cash_transactions
+    WHERE type = 'OUT' AND is_cancelled = 0
+      AND date >= ? AND date <= ?
+    ORDER BY date DESC, id DESC
+  `).all(startDate, endDate);
+
+  const totalAmount = transactions.reduce((acc, curr) => acc + (curr.amount || 0), 0);
+
+  // Hareket Nedeni bazında toplamlar
+  const bySubType = db.prepare(`
+    SELECT 
+      sub_type,
+      COUNT(*) as count,
+      COALESCE(SUM(amount), 0) as total_amount
+    FROM cash_transactions
+    WHERE type = 'OUT' AND is_cancelled = 0
+      AND date >= ? AND date <= ?
+    GROUP BY sub_type
+    ORDER BY total_amount DESC
+  `).all(startDate, endDate);
+
+  return {
+    transactions,
+    totalAmount,
+    count: transactions.length,
+    bySubType
+  };
+}
+
 // 1. Günlük Rapor
 router.get('/daily', authenticateToken, (req, res) => {
   try {
@@ -165,6 +206,7 @@ router.get('/daily', authenticateToken, (req, res) => {
 
     const personnelReport = getPersonnelReport(targetDate, targetDate);
     const expensesReport = getExpensesReport(targetDate, targetDate);
+    const cashOutReport = getCashOutReport(targetDate, targetDate);
 
     return res.json({
       success: true,
@@ -174,7 +216,8 @@ router.get('/daily', authenticateToken, (req, res) => {
       categories: [],
       attendance,
       personnelReport,
-      expensesReport
+      expensesReport,
+      cashOutReport
     });
   } catch (err) {
     console.error('Daily report error:', err);
@@ -219,6 +262,7 @@ router.get('/weekly', authenticateToken, (req, res) => {
 
     const personnelReport = getPersonnelReport(startDate, endDate);
     const expensesReport = getExpensesReport(startDate, endDate);
+    const cashOutReport = getCashOutReport(startDate, endDate);
 
     return res.json({
       success: true,
@@ -229,7 +273,8 @@ router.get('/weekly', authenticateToken, (req, res) => {
       salesByBusinessAndType,
       categories: [],
       personnelReport,
-      expensesReport
+      expensesReport,
+      cashOutReport
     });
   } catch (err) {
     console.error('Weekly report error:', err);
@@ -286,6 +331,7 @@ router.get('/monthly', authenticateToken, (req, res) => {
 
     const personnelReport = getPersonnelReport(startDate, endDate);
     const expensesReport = getExpensesReport(startDate, endDate);
+    const cashOutReport = getCashOutReport(startDate, endDate);
 
     return res.json({
       success: true,
@@ -299,7 +345,8 @@ router.get('/monthly', authenticateToken, (req, res) => {
       categories: [],
       expensesByCategory,
       personnelReport,
-      expensesReport
+      expensesReport,
+      cashOutReport
     });
   } catch (err) {
     console.error('Monthly report error:', err);
@@ -370,6 +417,7 @@ router.get('/yearly', authenticateToken, (req, res) => {
 
     const personnelReport = getPersonnelReport(startDate, endDate);
     const expensesReport = getExpensesReport(startDate, endDate);
+    const cashOutReport = getCashOutReport(startDate, endDate);
 
     return res.json({
       success: true,
@@ -381,6 +429,7 @@ router.get('/yearly', authenticateToken, (req, res) => {
       yearlyCategories: [],
       personnelReport,
       expensesReport,
+      cashOutReport,
       totals: {
         totalSales,
         totalExpenses,
@@ -430,6 +479,7 @@ router.get('/custom', authenticateToken, (req, res) => {
 
     const personnelReport = getPersonnelReport(startDate, endDate);
     const expensesReport = getExpensesReport(startDate, endDate);
+    const cashOutReport = getCashOutReport(startDate, endDate);
 
     return res.json({
       success: true,
@@ -440,7 +490,8 @@ router.get('/custom', authenticateToken, (req, res) => {
       salesByBusinessAndType,
       categories: [],
       personnelReport,
-      expensesReport
+      expensesReport,
+      cashOutReport
     });
   } catch (err) {
     console.error('Custom report error:', err);
@@ -478,6 +529,7 @@ router.get('/export-excel', authenticateToken, (req, res) => {
     const summary = getFinancialSummary(sDate, eDate);
     const personnel = getPersonnelReport(sDate, eDate);
     const expenses = getExpensesReport(sDate, eDate);
+    const cashOuts = getCashOutReport(sDate, eDate);
 
     const sG = summary?.gunlukOzet || {};
     const sSalesDK = summary?.sales?.DK?.total ?? sG.dkSatis ?? 0;
@@ -599,6 +651,35 @@ router.get('/export-excel', authenticateToken, (req, res) => {
 
     const wsExp = XLSX.utils.aoa_to_sheet(expRows);
     XLSX.utils.book_append_sheet(wb, wsExp, 'Giderler');
+
+    // 4. KASA PARA ÇIKIŞLARI SAYFASI (Ortaklar ve Çekimler)
+    const cashOutRows = [
+      ['DENİZE KARŞI & PALM BEACH - KASA PARA ÇIKIŞLARI (ORTAKLAR VE DİĞER ÇEKİMLER) DÖKÜMÜ'],
+      [`Dönem: ${sDate} — ${eDate}`],
+      [],
+      ['No', 'İşlem Tarihi', 'Hareket Nedeni', 'Çıkış Yapılan Hesap', 'Tutar (TL)', 'Açıklama']
+    ];
+    cashOuts.transactions.forEach((tx, idx) => {
+      let accLabel = 'Nakit Kasa';
+      if (tx.source_account === 'BANKA') {
+        accLabel = tx.business_id === 'DK' ? 'DK Banka' : (tx.business_id === 'PALM' ? 'Palm Banka' : 'Banka');
+      } else if (tx.source_account === 'KASA') {
+        accLabel = 'Nakit Kasa';
+      }
+      cashOutRows.push([
+        idx + 1,
+        tx.date,
+        tx.sub_type || 'Diğer',
+        accLabel,
+        tx.amount,
+        tx.description || ''
+      ]);
+    });
+    cashOutRows.push([]);
+    cashOutRows.push(['GENEL TOPLAM', '', '', '', cashOuts.totalAmount, '']);
+
+    const wsCashOut = XLSX.utils.aoa_to_sheet(cashOutRows);
+    XLSX.utils.book_append_sheet(wb, wsCashOut, 'Kasa_Para_Cikislari');
 
     const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
