@@ -1,12 +1,12 @@
 import React from 'react';
-import { LayoutDashboard, BadgePercent, Clock, Wallet, Menu } from 'lucide-react';
+import { BadgePercent, Clock, Wallet, BarChart3, Menu } from 'lucide-react';
 
 export default function MobileNav({ activeTab, onSelectTab, onOpenMobileMenu }) {
   const items = [
-    { id: 'dashboard', label: 'Özet', icon: LayoutDashboard },
-    { id: 'sales', label: 'Satış', icon: BadgePercent },
+    { id: 'fast-sales', label: 'Hızlı Satış', icon: BadgePercent },
     { id: 'attendance', label: 'Puantaj', icon: Clock },
     { id: 'cash', label: 'Kasa', icon: Wallet },
+    { id: 'reports', label: 'Raporlar', icon: BarChart3 },
   ];
 
   return (

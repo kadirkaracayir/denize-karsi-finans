@@ -328,7 +328,7 @@ export function getFinancialSummary(startDate, endDate) {
       kartSatis: sales.ORTAK.kart,
       netKartSatis: ortakNetBankCard,
       toplamKomisyonKesintisi: ortakCommissionAmount,
-      toplamOranFarki: ortakRateDiff,
+      toplamOranFarki: 0,
       dkSatis: sales.DK.total,
       palmSatis: sales.PALM.total,
       gider: expenses.TOTAL,

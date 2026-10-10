@@ -25,8 +25,8 @@ export default function Sidebar({ activeTab, onSelectTab, isMobileOpen, onCloseM
   const { user } = useAuth();
 
   const menuItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { id: 'sales', label: 'Hızlı Satış & Gelir', icon: BadgePercent, badge: 'Nakit/KK' },
+    { id: 'fast-sales', label: 'Hızlı Satış & Gelir', icon: BadgePercent, badge: 'Nakit/KK' },
+    { id: 'sales', label: 'Satış Listesi', icon: FileSpreadsheet },
     { id: 'cash', label: 'Nakit Kasa', icon: Wallet },
     { id: 'attendance', label: 'Personel & Puantaj', icon: Clock, badge: 'Excel Format' },
     { id: 'employees', label: 'Personel Listesi', icon: Users },
