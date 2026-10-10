@@ -272,94 +272,116 @@ export default function CashManagement({ onOpenCashTx, onNavigate }) {
         </div>
       </div>
 
-      {/* Kredi Kartları Bilgi Kartları (Ayrı Kasalar) */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* DK KART */}
-        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex flex-col justify-between">
+      {/* Kredi Kartı Kasaları Bölümü (İşletme Bazlı Bağımsız Ayrı Kasalar - Ortak Kasa Yok) */}
+      <div className="space-y-3">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 px-1">
           <div>
-            <div className="flex items-center justify-between text-blue-700 font-bold text-xs uppercase mb-3">
-              <div className="flex items-center space-x-2">
+            <div className="flex items-center space-x-2">
+              <div className="p-1.5 rounded-lg bg-indigo-50 text-indigo-700">
                 <CreditCard className="w-4 h-4" />
-                <span>DK Kredi Kartı Kasası</span>
               </div>
-              <span className="px-2 py-0.5 rounded bg-blue-50 text-blue-800">Ayrı Kasa</span>
+              <h3 className="text-sm font-black text-slate-800 tracking-wide uppercase">
+                KREDİ KARTI KASALARI (BAĞIMSIZ AYRI KASALAR)
+              </h3>
             </div>
-            <div className="space-y-1.5 text-xs text-slate-600">
-              <div className="flex justify-between">
-                <span>Brüt Kart Satışı:</span>
-                <span className="font-bold text-slate-900">{formatCurrency(s?.dkKart?.brut ?? s?.dk?.kart)}</span>
-              </div>
-              <div className="flex justify-between text-amber-700">
-                <span>Komisyon Tutarı:</span>
-                <span className="font-semibold">-{formatCurrency(s?.dkKart?.komisyonTutari || 0)}</span>
-              </div>
-              {(s?.dkKart?.oranFarki !== 0 && s?.dkKart?.oranFarki !== undefined) && (
-                <div className="flex justify-between text-slate-500">
-                  <span>Gün Sonu Oran Farkı:</span>
-                  <span>{formatCurrency(s?.dkKart?.oranFarki || 0)}</span>
-                </div>
-              )}
-              <div className="pt-2 border-t border-slate-100 flex justify-between font-bold text-blue-700 text-sm">
-                <span>Net Bankaya Düşen:</span>
-                <span>{formatCurrency(s?.dkKart?.netBankayaDusen ?? 0)}</span>
-              </div>
-            </div>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Nakit kasa gibi ortak havuz mantığı yoktur. DK ve Palm kredi kartı pos tahsilatları ve komisyonları birbirinden tamamen bağımsız ayrı kasalardır.
+            </p>
           </div>
-          {onNavigate && (
-            <div className="mt-3 pt-3 border-t border-slate-100 flex justify-end">
-              <button
-                onClick={() => onNavigate('sales')}
-                className="text-xs font-bold text-blue-600 hover:text-blue-700 flex items-center space-x-1"
-              >
-                <span>Satış & Ciro Takibi</span>
-                <ArrowRight className="w-3.5 h-3.5" />
-              </button>
-            </div>
-          )}
         </div>
 
-        {/* PALM KART */}
-        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex flex-col justify-between">
-          <div>
-            <div className="flex items-center justify-between text-emerald-700 font-bold text-xs uppercase mb-3">
-              <div className="flex items-center space-x-2">
-                <CreditCard className="w-4 h-4" />
-                <span>Palm Kredi Kartı Kasası</span>
-              </div>
-              <span className="px-2 py-0.5 rounded bg-emerald-50 text-emerald-800">Ayrı Kasa</span>
-            </div>
-            <div className="space-y-1.5 text-xs text-slate-600">
-              <div className="flex justify-between">
-                <span>Brüt Kart Satışı:</span>
-                <span className="font-bold text-slate-900">{formatCurrency(s?.palmKart?.brut ?? s?.palm?.kart)}</span>
-              </div>
-              <div className="flex justify-between text-amber-700">
-                <span>Komisyon Tutarı:</span>
-                <span className="font-semibold">-{formatCurrency(s?.palmKart?.komisyonTutari || 0)}</span>
-              </div>
-              {(s?.palmKart?.oranFarki !== 0 && s?.palmKart?.oranFarki !== undefined) && (
-                <div className="flex justify-between text-slate-500">
-                  <span>Gün Sonu Oran Farkı:</span>
-                  <span>{formatCurrency(s?.palmKart?.oranFarki || 0)}</span>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* DK KREDİ KARTI KASASI */}
+          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex flex-col justify-between hover:border-blue-300 transition-colors">
+            <div>
+              <div className="flex items-center justify-between text-blue-700 font-bold text-xs uppercase mb-3 pb-2 border-b border-slate-100">
+                <div className="flex items-center space-x-2">
+                  <CreditCard className="w-4 h-4" />
+                  <span className="font-extrabold text-sm">DK Kredi Kartı Kasası</span>
                 </div>
-              )}
-              <div className="pt-2 border-t border-slate-100 flex justify-between font-bold text-emerald-700 text-sm">
-                <span>Net Bankaya Düşen:</span>
-                <span>{formatCurrency(s?.palmKart?.netBankayaDusen ?? 0)}</span>
+                <span className="px-2.5 py-1 rounded-md bg-blue-100 text-blue-800 text-[11px] font-black border border-blue-200">
+                  Bağımsız Ayrı Kasa
+                </span>
+              </div>
+              <div className="space-y-2 text-xs text-slate-600">
+                <div className="flex justify-between items-center py-1">
+                  <span>Brüt Kart Satışı:</span>
+                  <span className="font-bold text-slate-900 text-sm">{formatCurrency(s?.dkKart?.brut ?? s?.dk?.kart)}</span>
+                </div>
+                <div className="flex justify-between items-center py-1 text-amber-700 bg-amber-50/50 px-2 rounded-lg">
+                  <span>Komisyon Tutarı:</span>
+                  <span className="font-bold">-{formatCurrency(s?.dkKart?.komisyonTutari || 0)}</span>
+                </div>
+                {(s?.dkKart?.oranFarki !== 0 && s?.dkKart?.oranFarki !== undefined) && (
+                  <div className="flex justify-between items-center py-1 text-slate-500 px-2">
+                    <span>Gün Sonu Oran Farkı:</span>
+                    <span>{formatCurrency(s?.dkKart?.oranFarki || 0)}</span>
+                  </div>
+                )}
+                <div className="pt-2.5 mt-1 border-t border-slate-100 flex justify-between items-center font-black text-blue-700 text-base">
+                  <span>Net Bankaya Düşen:</span>
+                  <span>{formatCurrency(s?.dkKart?.netBankayaDusen ?? 0)}</span>
+                </div>
               </div>
             </div>
+            {onNavigate && (
+              <div className="mt-4 pt-3 border-t border-slate-100 flex justify-end">
+                <button
+                  onClick={() => onNavigate('sales')}
+                  className="text-xs font-bold text-blue-600 hover:text-blue-700 flex items-center space-x-1"
+                >
+                  <span>Satış & Ciro Takibi</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            )}
           </div>
-          {onNavigate && (
-            <div className="mt-3 pt-3 border-t border-slate-100 flex justify-end">
-              <button
-                onClick={() => onNavigate('sales')}
-                className="text-xs font-bold text-emerald-600 hover:text-emerald-700 flex items-center space-x-1"
-              >
-                <span>Satış & Ciro Takibi</span>
-                <ArrowRight className="w-3.5 h-3.5" />
-              </button>
+
+          {/* PALM KREDİ KARTI KASASI */}
+          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex flex-col justify-between hover:border-emerald-300 transition-colors">
+            <div>
+              <div className="flex items-center justify-between text-emerald-700 font-bold text-xs uppercase mb-3 pb-2 border-b border-slate-100">
+                <div className="flex items-center space-x-2">
+                  <CreditCard className="w-4 h-4" />
+                  <span className="font-extrabold text-sm">Palm Kredi Kartı Kasası</span>
+                </div>
+                <span className="px-2.5 py-1 rounded-md bg-emerald-100 text-emerald-800 text-[11px] font-black border border-emerald-200">
+                  Bağımsız Ayrı Kasa
+                </span>
+              </div>
+              <div className="space-y-2 text-xs text-slate-600">
+                <div className="flex justify-between items-center py-1">
+                  <span>Brüt Kart Satışı:</span>
+                  <span className="font-bold text-slate-900 text-sm">{formatCurrency(s?.palmKart?.brut ?? s?.palm?.kart)}</span>
+                </div>
+                <div className="flex justify-between items-center py-1 text-amber-700 bg-amber-50/50 px-2 rounded-lg">
+                  <span>Komisyon Tutarı:</span>
+                  <span className="font-semibold">-{formatCurrency(s?.palmKart?.komisyonTutari || 0)}</span>
+                </div>
+                {(s?.palmKart?.oranFarki !== 0 && s?.palmKart?.oranFarki !== undefined) && (
+                  <div className="flex justify-between items-center py-1 text-slate-500 px-2">
+                    <span>Gün Sonu Oran Farkı:</span>
+                    <span>{formatCurrency(s?.palmKart?.oranFarki || 0)}</span>
+                  </div>
+                )}
+                <div className="pt-2.5 mt-1 border-t border-slate-100 flex justify-between items-center font-black text-emerald-700 text-base">
+                  <span>Net Bankaya Düşen:</span>
+                  <span>{formatCurrency(s?.palmKart?.netBankayaDusen ?? 0)}</span>
+                </div>
+              </div>
             </div>
-          )}
+            {onNavigate && (
+              <div className="mt-4 pt-3 border-t border-slate-100 flex justify-end">
+                <button
+                  onClick={() => onNavigate('sales')}
+                  className="text-xs font-bold text-emerald-600 hover:text-emerald-700 flex items-center space-x-1"
+                >
+                  <span>Satış & Ciro Takibi</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
