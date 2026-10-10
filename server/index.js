@@ -9,6 +9,7 @@ import { fileURLToPath } from 'node:url';
 // DB & Seed
 import { initializeSchema } from './db/schema.js';
 import { seedDatabase } from './db/seed.js';
+import { syncFromTurso } from './db/database.js';
 
 // Routes
 import authRoutes from './routes/auth.js';
@@ -31,6 +32,7 @@ const PORT = process.env.PORT || 3000;
 // Initialize Database & Seed
 initializeSchema();
 seedDatabase(false);
+await syncFromTurso();
 
 // Middlewares
 app.use(cors());
