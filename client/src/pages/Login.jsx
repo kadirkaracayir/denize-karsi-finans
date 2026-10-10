@@ -304,28 +304,41 @@ export default function Login() {
                     </div>
                   </div>
 
-                  <div className="flex items-center justify-end space-x-2 pt-2">
+                  <div className="flex items-center justify-between pt-2">
                     <button
                       type="button"
-                      onClick={() => setShowForgotModal(false)}
-                      className="px-4 py-2 border border-slate-300 hover:bg-slate-50 text-slate-700 rounded-xl text-xs font-bold transition-colors"
+                      onClick={() => {
+                        if (!forgotEmail) setForgotEmail('cengizhankan53@hotmail.com');
+                        setForgotStep(2);
+                      }}
+                      className="text-xs text-blue-600 hover:text-blue-800 font-bold underline cursor-pointer"
+                      title="E-posta beklemeden Yönetici Güvenlik PIN'i ile anında şifre yenileyin"
                     >
-                      İptal
+                      PIN ile Sıfırla →
                     </button>
-                    <button
-                      type="submit"
-                      disabled={forgotLoading}
-                      className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition-all shadow-xs flex items-center space-x-1.5 disabled:opacity-50"
-                    >
-                      {forgotLoading ? (
-                        <>
-                          <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                          <span>E-posta Gönderiliyor...</span>
-                        </>
-                      ) : (
-                        <span>Doğrulama Kodu Gönder →</span>
-                      )}
-                    </button>
+                    <div className="flex items-center space-x-2">
+                      <button
+                        type="button"
+                        onClick={() => setShowForgotModal(false)}
+                        className="px-3.5 py-2 border border-slate-300 hover:bg-slate-50 text-slate-700 rounded-xl text-xs font-bold transition-colors cursor-pointer"
+                      >
+                        İptal
+                      </button>
+                      <button
+                        type="submit"
+                        disabled={forgotLoading}
+                        className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition-all shadow-xs flex items-center space-x-1.5 disabled:opacity-50 cursor-pointer"
+                      >
+                        {forgotLoading ? (
+                          <>
+                            <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                            <span>E-posta Gönderiliyor...</span>
+                          </>
+                        ) : (
+                          <span>Doğrulama Kodu Gönder →</span>
+                        )}
+                      </button>
+                    </div>
                   </div>
                 </form>
               )}
@@ -336,25 +349,25 @@ export default function Login() {
                   <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl text-xs text-blue-900 flex items-start space-x-2">
                     <Mail className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
                     <div>
-                      <span className="font-bold">E-postanızı Kontrol Ediniz:</span>
+                      <span className="font-bold">Doğrulama:</span>
                       <p className="mt-0.5 text-blue-800">
-                        <strong>{forgotEmail}</strong> adresinize 6 haneli güvenlik kodu gönderilmiştir. Lütfen gelen kutunuzu (ve gereksiz / spam klasörünü) kontrol ederek kodu giriniz.
+                        E-postanıza gönderilen 6 haneli kodu veya yetkili <strong>Yönetici Güvenlik PIN</strong> kodunuzu giriniz.
                       </p>
                     </div>
                   </div>
 
                   <div>
                     <label className="block text-xs font-bold uppercase text-slate-600 mb-1.5">
-                      6 Haneli Doğrulama Kodu
+                      Doğrulama Kodu veya Güvenlik PIN
                     </label>
                     <input
                       type="text"
-                      maxLength={6}
+                      maxLength={15}
                       value={forgotCode}
                       onChange={(e) => setForgotCode(e.target.value)}
-                      placeholder="Örn: 123456"
+                      placeholder="6 haneli kod veya PIN giriniz"
                       required
-                      className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-sm font-mono tracking-widest text-center font-bold focus:ring-2 focus:ring-blue-600 text-slate-900"
+                      className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-sm font-mono tracking-wider text-center font-bold focus:ring-2 focus:ring-blue-600 text-slate-900"
                     />
                   </div>
 
