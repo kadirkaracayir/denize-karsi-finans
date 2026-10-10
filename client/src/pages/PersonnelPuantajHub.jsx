@@ -297,11 +297,24 @@ export default function PersonnelPuantajHub() {
       const current = prev[empId] || {};
       const updated = { ...current, [field]: value };
 
+      // Çalışmadı seçildiyse mesai saatlerini ve hakedişi sıfırla
+      if (field === 'status' && (value === 'GELMEDI' || value === 'CALISMADI')) {
+        updated.status = 'GELMEDI';
+        updated.check_in_time = '00:00';
+        updated.check_out_time = '00:00';
+        updated.hours_worked = 0;
+        updated.accrual_amount = 0;
+        return {
+          ...prev,
+          [empId]: updated
+        };
+      }
+
       const inT = updated.check_in_time || '00:00';
       const outT = updated.check_out_time || '00:00';
       const calculatedHours = calcLiveHours(inT, outT);
 
-      // Saat girildiyse ve durum seçilmediyse otomatik olarak 'CALISTI' yap
+      // Saat girildiyse ve durum seçilmediyse veya 'GELMEDI' idiyse otomatik olarak 'CALISTI' yap
       if (calculatedHours > 0 && (!updated.status || updated.status === 'GELMEDI')) {
         updated.status = 'CALISTI';
       }
@@ -311,7 +324,7 @@ export default function PersonnelPuantajHub() {
       const hourlyRate = parseFloat(empInfo?.hourly_rate) || 0;
 
       let calculatedAccrual = 0;
-      if (updated.status === 'CALISTI' || updated.status === 'YARIM_GUN' || (calculatedHours > 0 && !updated.status)) {
+      if (updated.status === 'CALISTI' || (calculatedHours > 0 && !updated.status)) {
         calculatedAccrual = Math.round(calculatedHours * hourlyRate * 100) / 100;
       } else {
         calculatedAccrual = 0;
@@ -1062,77 +1075,67 @@ export default function PersonnelPuantajHub() {
               </div>
             </div>
 
+            {/* Search & Filter Toolbar */}
+            <div className="p-3 bg-slate-50/70 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3">
+              <div className="flex flex-wrap items-center gap-2 flex-1 max-w-lg">
+                <div className="relative flex-1 min-w-[200px]">
+                  <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  <input
+                    type="text"
+                    value={dailySearchQuery}
+                    onChange={(e) => {
+                      setDailySearchQuery(e.target.value);
+                      if (e.target.value) setSelectedEmployeeFilter('');
+                    }}
+                    placeholder="🔍 Personel ara (isim veya görev)..."
+                    className="w-full pl-9 pr-3 py-1.5 bg-white border border-slate-300 rounded-xl text-xs font-medium text-slate-900 placeholder:text-slate-400 focus:outline-hidden focus:ring-2 focus:ring-blue-500 shadow-2xs"
+                  />
+                </div>
+                <select
+                  value={selectedEmployeeFilter}
+                  onChange={(e) => {
+                    setSelectedEmployeeFilter(e.target.value);
+                    if (e.target.value) setDailySearchQuery('');
+                  }}
+                  className="py-1.5 px-2 bg-white border border-slate-300 rounded-xl text-xs font-bold text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-blue-500 shadow-2xs cursor-pointer"
+                >
+                  <option value="">Tüm Personeller ({dailyAttendance.length})</option>
+                  {dailyAttendance.map(emp => (
+                    <option key={emp.employee_id} value={emp.employee_id}>
+                      {emp.employee_name} ({emp.employee_role || 'Ortak'})
+                    </option>
+                  ))}
+                </select>
+              </div>
+              {(dailySearchQuery || selectedEmployeeFilter) && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDailySearchQuery('');
+                    setSelectedEmployeeFilter('');
+                  }}
+                  className="text-xs text-rose-600 hover:text-rose-800 font-bold underline cursor-pointer"
+                >
+                  Filtreyi Temizle
+                </button>
+              )}
+            </div>
+
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[1050px] text-xs text-left border-collapse">
+              <table className="w-full text-xs text-left border-collapse">
                 <thead className="bg-slate-100 text-slate-700 font-bold uppercase text-[10px] border-b border-slate-200 sticky top-0 z-20 shadow-xs">
                   <tr>
-                    {/* Personel Kolonu - Hızlı Seçim ve Arama Özellikli */}
-                    <th className="py-2.5 px-3 sticky left-0 z-30 bg-slate-100 border-r border-slate-200 shadow-xs min-w-[210px]">
-                      <div className="space-y-1.5">
-                        <div className="flex items-center justify-between">
-                          <span className="font-extrabold text-slate-800 text-xs">Personel</span>
-                          {(dailySearchQuery || selectedEmployeeFilter) && (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setDailySearchQuery('');
-                                setSelectedEmployeeFilter('');
-                              }}
-                              className="text-[9px] text-rose-600 hover:text-rose-800 font-bold underline cursor-pointer normal-case"
-                              title="Filtreyi Temizle"
-                            >
-                              Tümünü Göster
-                            </button>
-                          )}
-                        </div>
-
-                        {/* Personel Kolonundan Hızlı Seçme Dropdown'ı */}
-                        <select
-                          value={selectedEmployeeFilter}
-                          onChange={(e) => {
-                            setSelectedEmployeeFilter(e.target.value);
-                            if (e.target.value) setDailySearchQuery('');
-                          }}
-                          className="w-full py-1 px-1.5 bg-white border border-slate-300 rounded text-[11px] font-bold text-slate-800 normal-case focus:outline-hidden focus:ring-1 focus:ring-blue-500 cursor-pointer shadow-2xs"
-                        >
-                          <option value="">⚡ Personel Seç ({dailyAttendance.length})</option>
-                          {dailyAttendance.map(emp => (
-                            <option key={emp.employee_id} value={emp.employee_id}>
-                              {emp.employee_name} ({emp.employee_role || 'Ortak'})
-                            </option>
-                          ))}
-                        </select>
-
-                        {/* Personel Kolonundan Hızlı Arama */}
-                        <div className="relative">
-                          <Search className="w-3 h-3 text-slate-400 absolute left-2 top-1/2 -translate-y-1/2 pointer-events-none" />
-                          <input
-                            type="text"
-                            value={dailySearchQuery}
-                            onChange={(e) => {
-                              setDailySearchQuery(e.target.value);
-                              if (e.target.value) setSelectedEmployeeFilter('');
-                            }}
-                            placeholder="İsimle Hızlı Ara..."
-                            className="w-full pl-6 pr-2 py-1 bg-white border border-slate-300 rounded text-[11px] font-medium text-slate-900 placeholder:text-slate-400 focus:outline-hidden focus:ring-1 focus:ring-blue-500 normal-case shadow-2xs"
-                          />
-                        </div>
-                      </div>
-                    </th>
-                    <th className="py-3 px-3 min-w-[150px]">Durum (İşaretle)</th>
-                    <th className="py-3 px-3 text-center text-emerald-800 bg-emerald-50/60 font-black min-w-[110px]">🟢 Giriş Saati</th>
-                    <th className="py-3 px-3 text-center text-rose-800 bg-rose-50/60 font-black min-w-[110px]">🔴 Çıkış Saati</th>
-                    <th className="py-3 px-3 text-center text-blue-800 bg-blue-50/60 font-black min-w-[110px]">⏱️ Çalışılan Süre</th>
-                    <th className="py-3 px-3 text-right min-w-[100px]">Saatlik Ücret</th>
-                    <th className="py-3 px-3 text-right min-w-[130px]">Hesaplanan Hakediş</th>
-                    <th className="py-3 px-3 text-right min-w-[110px]">Günün Avansı</th>
-                    <th className="py-3 px-3 text-center min-w-[120px]">Hızlı İşlemler</th>
+                    <th className="py-3 px-4 min-w-[180px]">Personel & Saat Ücreti</th>
+                    <th className="py-3 px-3 text-center min-w-[130px]">Durum</th>
+                    <th className="py-3 px-3 text-center min-w-[220px]">Mesai (Giriş - Çıkış & Süre)</th>
+                    <th className="py-3 px-4 text-right min-w-[130px]">Hakediş & Avans</th>
+                    <th className="py-3 px-3 text-center min-w-[130px]">İşlemler</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {filteredDailyAttendance.length === 0 ? (
                     <tr>
-                      <td colSpan={9} className="py-12 text-center text-slate-400 bg-white">
+                      <td colSpan={5} className="py-12 text-center text-slate-400 bg-white">
                         <div className="space-y-1">
                           <p className="font-bold text-slate-600">Aradığınız kriterde personel bulunamadı.</p>
                           <p className="text-xs text-slate-400">"{dailySearchQuery}" araması için sonuç yok.</p>
@@ -1163,141 +1166,121 @@ export default function PersonnelPuantajHub() {
 
                     return (
                       <tr key={emp.employee_id} className="hover:bg-slate-50/80 transition-colors group">
-                        {/* Personel Info - Sticky on Left */}
-                        <td className="py-3 px-3 sticky left-0 z-10 bg-white group-hover:bg-slate-50 border-r border-slate-200 shadow-2xs min-w-[160px]">
-                          <div className="font-bold text-slate-900">{emp.employee_name}</div>
-                          <div className="text-[10px] text-slate-400">
-                            {emp.employee_role || 'Ortak Personel'}
+                        {/* 1. Personel & Saat Ücreti */}
+                        <td className="py-3 px-4">
+                          <div className="font-bold text-slate-900 text-sm">{emp.employee_name}</div>
+                          <div className="text-[11px] text-slate-500 flex items-center gap-1.5 font-medium mt-0.5">
+                            <span className="font-medium text-slate-600">{emp.employee_role || 'Ortak Personel'}</span>
+                            <span className="text-slate-300">•</span>
+                            <span className="font-bold text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded text-[10px]">{emp.hourly_rate} ₺/sa</span>
                           </div>
                         </td>
 
-                        {/* Status Select: Otomatik Çalıştı gelmez, kullanıcı işaretler */}
-                        <td className="py-3 px-3">
+                        {/* 2. Durum (Çalıştı / Çalışmadı) */}
+                        <td className="py-3 px-3 text-center">
                           <select
-                            value={row.status || ''}
+                            value={row.status === 'CALISTI' ? 'CALISTI' : (row.status === 'GELMEDI' || row.status === 'CALISMADI' ? 'GELMEDI' : (row.status || ''))}
                             onChange={(e) => handleTimeChange(emp.employee_id, 'status', e.target.value)}
-                            className={`px-2 py-1.5 rounded-lg border text-xs font-bold transition-all ${
+                            className={`px-3 py-1.5 rounded-xl border text-xs font-black transition-all cursor-pointer shadow-2xs ${
                               row.status === 'CALISTI'
-                                ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
-                                : row.status === 'YARIM_GUN'
-                                ? 'bg-amber-50 text-amber-800 border-amber-300'
-                                : row.status === 'IZINLI'
-                                ? 'bg-blue-50 text-blue-800 border-blue-300'
-                                : row.status === 'RAPORLU'
-                                ? 'bg-purple-50 text-purple-800 border-purple-300'
-                                : row.status === 'GELMEDI'
-                                ? 'bg-rose-50 text-rose-800 border-rose-300'
+                                ? 'bg-emerald-50 text-emerald-800 border-emerald-400 ring-1 ring-emerald-300'
+                                : row.status === 'GELMEDI' || row.status === 'CALISMADI'
+                                ? 'bg-rose-50 text-rose-800 border-rose-400'
                                 : 'bg-slate-50 text-slate-500 border-slate-300'
                             }`}
                           >
-                            <option value="">— İşaretsiz (Seçiniz) —</option>
-                            <option value="CALISTI">✅ Çalıştı (Ç)</option>
-                            <option value="YARIM_GUN">½ Yarım Gün</option>
-                            <option value="IZINLI">🏖️ İzinli (İ)</option>
-                            <option value="RAPORLU">🩺 Raporlu (R)</option>
-                            <option value="GELMEDI">❌ Devamsız (X)</option>
+                            <option value="">— Seçiniz —</option>
+                            <option value="CALISTI">✅ Çalıştı</option>
+                            <option value="GELMEDI">❌ Çalışmadı</option>
                           </select>
                         </td>
 
-                        {/* Check-in Time */}
-                        <td className="py-3 px-3 text-center bg-emerald-50/20">
-                          <input
-                            type="time"
-                            value={row.check_in_time || '00:00'}
-                            onChange={(e) => handleTimeChange(emp.employee_id, 'check_in_time', e.target.value)}
-                            className={`px-2 py-1 rounded-lg text-xs font-black text-center border w-24 focus:ring-2 focus:ring-emerald-500 ${
-                              row.check_in_time && row.check_in_time !== '00:00'
-                                ? 'bg-emerald-50 text-emerald-950 border-emerald-400 ring-1 ring-emerald-300 shadow-2xs'
-                                : 'bg-white border-slate-300 text-slate-800'
-                            }`}
-                          />
-                        </td>
-
-                        {/* Check-out Time */}
-                        <td className="py-3 px-3 text-center bg-rose-50/20">
-                          <input
-                            type="time"
-                            value={row.check_out_time || '00:00'}
-                            onChange={(e) => handleTimeChange(emp.employee_id, 'check_out_time', e.target.value)}
-                            className={`px-2 py-1 rounded-lg text-xs font-black text-center border w-24 focus:ring-2 focus:ring-rose-500 ${
-                              row.check_out_time && row.check_out_time !== '00:00'
-                                ? 'bg-rose-50 text-rose-950 border-rose-400 ring-1 ring-rose-300 shadow-2xs'
-                                : 'bg-white border-slate-300 text-slate-800'
-                            }`}
-                          />
-                        </td>
-
-                        {/* Hours Worked (Calculated live) */}
-                        <td className="py-3 px-3 text-center">
-                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-black ${
-                            row.hours_worked > 0 ? 'bg-blue-100 text-blue-800' : 'bg-slate-100 text-slate-500'
-                          }`}>
-                            {row.hours_worked} Saat
-                          </span>
-                        </td>
-
-                        {/* Hourly Rate (Sadece Saatlik Ücret) */}
-                        <td className="py-3 px-3 text-right text-slate-700 font-bold">
-                          {emp.hourly_rate} TL / sa
-                        </td>
-
-                        {/* Accrual Amount (Hours * Rate) */}
-                        <td className="py-3 px-3 text-right font-black text-sm text-emerald-700">
-                          {formatCurrency(row.accrual_amount)}
-                        </td>
-
-                        {/* Today's Advance */}
-                        <td className="py-3 px-3 text-right">
-                          {emp.today_advance > 0 ? (
-                            <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-100 text-amber-800">
-                              -{formatCurrency(emp.today_advance)}
+                        {/* 3. Mesai (Giriş - Çıkış & Süre) */}
+                        <td className="py-3 px-3">
+                          <div className="flex items-center justify-center gap-2">
+                            <div className="flex items-center space-x-1 bg-slate-50 px-2 py-1 rounded-xl border border-slate-200 shadow-2xs">
+                              <input
+                                type="time"
+                                value={row.check_in_time || '00:00'}
+                                onChange={(e) => handleTimeChange(emp.employee_id, 'check_in_time', e.target.value)}
+                                className={`px-1.5 py-0.5 rounded-lg text-xs font-black text-center border w-20 focus:ring-2 focus:ring-emerald-500 ${
+                                  row.check_in_time && row.check_in_time !== '00:00'
+                                    ? 'bg-emerald-50 text-emerald-950 border-emerald-300 font-bold'
+                                    : 'bg-white border-slate-300 text-slate-700'
+                                }`}
+                                title="Giriş Saati"
+                              />
+                              <span className="text-slate-400 font-bold text-xs">➔</span>
+                              <input
+                                type="time"
+                                value={row.check_out_time || '00:00'}
+                                onChange={(e) => handleTimeChange(emp.employee_id, 'check_out_time', e.target.value)}
+                                className={`px-1.5 py-0.5 rounded-lg text-xs font-black text-center border w-20 focus:ring-2 focus:ring-rose-500 ${
+                                  row.check_out_time && row.check_out_time !== '00:00'
+                                    ? 'bg-rose-50 text-rose-950 border-rose-300 font-bold'
+                                    : 'bg-white border-slate-300 text-slate-700'
+                                }`}
+                                title="Çıkış Saati"
+                              />
+                            </div>
+                            <span className={`inline-flex items-center px-2 py-1 rounded-lg text-xs font-black whitespace-nowrap shadow-2xs ${
+                              row.hours_worked > 0 ? 'bg-blue-100 text-blue-900 border border-blue-200' : 'bg-slate-100 text-slate-400'
+                            }`}>
+                              {row.hours_worked || 0} sa
                             </span>
+                          </div>
+                        </td>
+
+                        {/* 4. Hakediş & Günün Avansı */}
+                        <td className="py-3 px-4 text-right">
+                          <div className="font-black text-sm text-emerald-700">
+                            {formatCurrency(row.accrual_amount)}
+                          </div>
+                          {emp.today_advance > 0 ? (
+                            <div className="text-[11px] font-bold text-amber-700 mt-0.5">
+                              Avans: -{formatCurrency(emp.today_advance)}
+                            </div>
                           ) : (
-                            <span className="text-slate-400">-</span>
+                            <div className="text-[10px] text-slate-400 mt-0.5">Avans yok</div>
                           )}
                         </td>
 
-                        {/* Action buttons */}
+                        {/* 5. İşlemler */}
                         <td className="py-3 px-3 text-center">
-                          <div className="flex items-center justify-center space-x-1">
-                            {/* Save Time Button */}
+                          <div className="flex items-center justify-center space-x-1.5">
+                            {/* Kaydet */}
                             <button
                               onClick={() => handleSaveEmployeeTime(emp.employee_id)}
                               disabled={isSaving}
-                              className="px-2.5 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold transition-all flex items-center space-x-1 shadow-2xs cursor-pointer"
-                              title="Saat ve Hakedişi Kaydet"
+                              className="px-2.5 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold transition-all flex items-center space-x-1 shadow-2xs cursor-pointer disabled:opacity-50"
+                              title="Bu personelin saat ve hakedişini kaydet"
                             >
-                              {isSaving ? (
-                                <RefreshCw className="w-3 h-3 animate-spin" />
-                              ) : (
-                                <Save className="w-3 h-3" />
-                              )}
+                              {isSaving ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />}
                               <span>Kaydet</span>
                             </button>
 
-                            {/* Give Advance Button (Aynı ekranda avans gir) */}
+                            {/* Avans */}
                             <button
                               onClick={() => handleOpenAdvanceModal(emp)}
-                              className="px-2.5 py-1 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-xs font-bold transition-all flex items-center space-x-1 shadow-2xs cursor-pointer"
+                              className="px-2 py-1 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-xs font-bold transition-all shadow-2xs cursor-pointer"
                               title="Personele Avans Ver"
                             >
-                              <Zap className="w-3 h-3" />
-                              <span>Avans</span>
+                              Avans
                             </button>
 
-                            {/* Edit Employee Info Button */}
+                            {/* Düzenle */}
                             <button
                               onClick={() => handleOpenEditEmp(emp)}
-                              className="p-1.5 bg-slate-100 hover:bg-blue-50 text-slate-600 hover:text-blue-700 rounded-lg transition-colors cursor-pointer border border-slate-200"
-                              title="Personel Bilgilerini Düzenle (Ücret, Rol vb.)"
+                              className="p-1 bg-slate-100 hover:bg-blue-50 text-slate-500 hover:text-blue-700 rounded-lg transition-colors cursor-pointer border border-slate-200"
+                              title="Personel Bilgisini Düzenle (Ücret, Rol vb.)"
                             >
                               <Edit2 className="w-3.5 h-3.5" />
                             </button>
 
-                            {/* Delete Employee Button */}
+                            {/* Sil */}
                             <button
                               onClick={() => handleDeleteEmployee(emp)}
-                              className="p-1.5 bg-slate-100 hover:bg-rose-50 text-slate-400 hover:text-rose-600 rounded-lg transition-colors cursor-pointer border border-slate-200"
+                              className="p-1 bg-slate-100 hover:bg-rose-50 text-slate-400 hover:text-rose-600 rounded-lg transition-colors cursor-pointer border border-slate-200"
                               title="Personeli Sistemden Sil"
                             >
                               <Trash2 className="w-3.5 h-3.5" />
@@ -1532,32 +1515,6 @@ export default function PersonnelPuantajHub() {
               </div>
 
               <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
-                {/* Horizontal Scroll Controls */}
-                <div className="flex items-center space-x-1 bg-slate-100 px-2 py-1 rounded-xl border border-slate-200">
-                  <button
-                    type="button"
-                    onClick={() => scrollWeeklyTable(-300)}
-                    className="px-2 py-1 bg-white hover:bg-slate-200 text-slate-800 rounded-lg text-xs font-bold transition-all flex items-center gap-1 shadow-2xs border border-slate-200 cursor-pointer"
-                    title="Tabloyu Sola Kaydır"
-                  >
-                    <ChevronLeft className="w-3.5 h-3.5 text-blue-600" />
-                    <span className="hidden sm:inline">Sola</span>
-                  </button>
-                  <span className="text-[11px] text-blue-700 font-black px-1.5 flex items-center gap-1">
-                    <ArrowLeftRight className="w-3.5 h-3.5 text-blue-600" />
-                    <span className="hidden md:inline">Yatay Kaydır</span>
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => scrollWeeklyTable(300)}
-                    className="px-2 py-1 bg-white hover:bg-slate-200 text-slate-800 rounded-lg text-xs font-bold transition-all flex items-center gap-1 shadow-2xs border border-slate-200 cursor-pointer"
-                    title="Tabloyu Sağa Kaydır"
-                  >
-                    <span className="hidden sm:inline">Sağa</span>
-                    <ChevronRight className="w-3.5 h-3.5 text-blue-600" />
-                  </button>
-                </div>
-
                 <button
                   onClick={handleExportRangeExcel}
                   className="px-4 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs transition-all flex items-center space-x-1.5 cursor-pointer"
@@ -1581,7 +1538,7 @@ export default function PersonnelPuantajHub() {
             <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
               <div 
                 ref={weeklyTableRef}
-                className="overflow-x-auto overflow-y-auto max-h-[70vh] horizontal-scroll-container scrollbar-thin"
+                className="overflow-x-auto"
               >
                 <table className="w-full min-w-[1100px] text-xs text-left border-collapse">
                   <thead className="bg-slate-100 text-slate-700 font-bold uppercase text-[10px] border-b border-slate-200 sticky top-0 z-20 shadow-xs">
@@ -1686,31 +1643,6 @@ export default function PersonnelPuantajHub() {
                 </table>
               </div>
 
-              {/* Tab 3 Alt Yatay Kaydırma Çubuğu & Hızlı Butonlar */}
-              <div className="p-3 bg-slate-50 border-t border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <span className="flex items-center gap-1.5 font-bold text-[11px] text-slate-500">
-                  <ArrowLeftRight className="w-3.5 h-3.5 text-blue-600" />
-                  <span>Tabloyu sağa-sola kaydırarak saat, hakediş, avans ve ödenecek net tutarları inceleyebilirsiniz.</span>
-                </span>
-                <div className="flex items-center space-x-1">
-                  <button
-                    type="button"
-                    onClick={() => scrollWeeklyTable(-300)}
-                    className="px-2.5 py-1 bg-white hover:bg-slate-200 border border-slate-300 rounded-lg text-xs font-bold transition-all shadow-2xs flex items-center gap-1 cursor-pointer"
-                  >
-                    <ChevronLeft className="w-3.5 h-3.5 text-blue-600" />
-                    <span>Sola</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => scrollWeeklyTable(300)}
-                    className="px-2.5 py-1 bg-white hover:bg-slate-200 border border-slate-300 rounded-lg text-xs font-bold transition-all shadow-2xs flex items-center gap-1 cursor-pointer"
-                  >
-                    <span>Sağa</span>
-                    <ChevronRight className="w-3.5 h-3.5 text-blue-600" />
-                  </button>
-                </div>
-              </div>
             </div>
           </div>
         );
@@ -1750,33 +1682,8 @@ export default function PersonnelPuantajHub() {
               </button>
             </div>
 
-            {/* View Mode Toggle & Scroll Controls */}
+            {/* View Mode Toggle */}
             <div className="flex flex-wrap items-center gap-2">
-              <div className="flex items-center space-x-1 bg-slate-100 px-2 py-1 rounded-xl border border-slate-200">
-                <button
-                  type="button"
-                  onClick={() => scrollMatrixTable(-350)}
-                  className="px-2 py-1 bg-white hover:bg-slate-200 text-slate-800 rounded-lg text-xs font-bold transition-all flex items-center gap-1 shadow-2xs border border-slate-200 cursor-pointer"
-                  title="Puantajı Sola Kaydır"
-                >
-                  <ChevronLeft className="w-3.5 h-3.5 text-blue-600" />
-                  <span className="hidden sm:inline">Sola</span>
-                </button>
-                <span className="text-[11px] text-blue-700 font-black px-1.5 flex items-center gap-1">
-                  <ArrowLeftRight className="w-3.5 h-3.5 text-blue-600" />
-                  <span className="hidden md:inline">Günleri Kaydır</span>
-                </span>
-                <button
-                  type="button"
-                  onClick={() => scrollMatrixTable(350)}
-                  className="px-2 py-1 bg-white hover:bg-slate-200 text-slate-800 rounded-lg text-xs font-bold transition-all flex items-center gap-1 shadow-2xs border border-slate-200 cursor-pointer"
-                  title="Puantajı Sağa Kaydır"
-                >
-                  <span className="hidden sm:inline">Sağa</span>
-                  <ChevronRight className="w-3.5 h-3.5 text-blue-600" />
-                </button>
-              </div>
-
               <div className="flex items-center space-x-2">
                 <span className="text-xs font-bold text-slate-600">Görünüm:</span>
                 <button
@@ -1810,7 +1717,7 @@ export default function PersonnelPuantajHub() {
           <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
             <div 
               ref={matrixTableRef}
-              className="overflow-x-auto overflow-y-auto scrollbar-thin max-h-[68vh] horizontal-scroll-container"
+              className="overflow-x-auto"
             >
               <table className="w-full min-w-[1300px] text-xs text-center border-collapse">
                 <thead className="bg-slate-900 text-white font-bold sticky top-0 z-20">
@@ -1906,32 +1813,6 @@ export default function PersonnelPuantajHub() {
                   ))}
                 </tbody>
               </table>
-            </div>
-
-            {/* Tab 2 Alt Yatay Kaydırma Çubuğu & Hızlı Butonlar */}
-            <div className="p-3 bg-slate-50 border-t border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <span className="flex items-center gap-1.5 font-bold text-[11px] text-slate-500">
-                <ArrowLeftRight className="w-3.5 h-3.5 text-blue-600" />
-                <span>Ayın 1'inden 31'ine kadar tüm günleri görmek için sağa ve sola kaydırabilirsiniz.</span>
-              </span>
-              <div className="flex items-center space-x-1">
-                <button
-                  type="button"
-                  onClick={() => scrollMatrixTable(-350)}
-                  className="px-2.5 py-1 bg-white hover:bg-slate-200 border border-slate-300 rounded-lg text-xs font-bold transition-all shadow-2xs flex items-center gap-1 cursor-pointer"
-                >
-                  <ChevronLeft className="w-3.5 h-3.5 text-blue-600" />
-                  <span>Sola</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => scrollMatrixTable(350)}
-                  className="px-2.5 py-1 bg-white hover:bg-slate-200 border border-slate-300 rounded-lg text-xs font-bold transition-all shadow-2xs flex items-center gap-1 cursor-pointer"
-                >
-                  <span>Sağa</span>
-                  <ChevronRight className="w-3.5 h-3.5 text-blue-600" />
-                </button>
-              </div>
             </div>
           </div>
         </div>
