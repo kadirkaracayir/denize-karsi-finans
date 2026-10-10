@@ -1,26 +1,42 @@
 import nodemailer from 'nodemailer';
 
 /**
- * Hostinger SMTP Mail Transporter
+ * Hostinger SMTP Mail Transporters with Fast Timeouts
+ * Port 587 (STARTTLS): Faster, modern, avoids ISP/firewall blocks
+ * Port 465 (SSL): Automatic secondary fallback
  */
-const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST || 'smtp.hostinger.com',
-  port: parseInt(process.env.SMTP_PORT || '465', 10),
-  secure: process.env.SMTP_SECURE !== 'false', // true for 465, false for other ports
-  auth: {
-    user: process.env.SMTP_USER || 'finans@denizekarsigarden.com',
-    pass: process.env.SMTP_PASS || 'Finans2026#'
-  },
-  tls: {
-    rejectUnauthorized: false
-  }
+const smtpUser = process.env.SMTP_USER || 'finans@denizekarsigarden.com';
+const smtpPass = process.env.SMTP_PASS || 'Finans2026#';
+const smtpHost = process.env.SMTP_HOST || 'smtp.hostinger.com';
+
+const transporter587 = nodemailer.createTransport({
+  host: smtpHost,
+  port: 587,
+  secure: false,
+  requireTLS: true,
+  connectionTimeout: 8000,
+  greetingTimeout: 8000,
+  socketTimeout: 10000,
+  auth: { user: smtpUser, pass: smtpPass },
+  tls: { rejectUnauthorized: false }
+});
+
+const transporter465 = nodemailer.createTransport({
+  host: smtpHost,
+  port: 465,
+  secure: true,
+  connectionTimeout: 8000,
+  greetingTimeout: 8000,
+  socketTimeout: 10000,
+  auth: { user: smtpUser, pass: smtpPass },
+  tls: { rejectUnauthorized: false }
 });
 
 /**
  * Send 6-digit Password Reset Code via Email
  */
 export async function sendPasswordResetEmail(toEmail, verificationCode) {
-  const fromAddress = process.env.SMTP_FROM || '"Denize Karşı Finans" <finans@denizekarsigarden.com>';
+  const fromAddress = process.env.SMTP_FROM || `"Denize Karşı Finans" <${smtpUser}>`;
 
   const htmlContent = `
     <!DOCTYPE html>
@@ -94,7 +110,12 @@ Bu talebi siz yapmadıysanız lütfen bu mesajı dikkate almayınız.
     html: htmlContent
   };
 
-  return transporter.sendMail(mailOptions);
+  try {
+    return await transporter587.sendMail(mailOptions);
+  } catch (err587) {
+    console.warn('Port 587 SMTP gönderim hatası, Port 465 deneniyor...', err587.message);
+    return await transporter465.sendMail(mailOptions);
+  }
 }
 
 export default {

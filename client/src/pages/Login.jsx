@@ -63,7 +63,7 @@ export default function Login() {
         setForgotError(res.message || 'Doğrulama kodu gönderilemedi.');
       }
     } catch (err) {
-      setForgotError(err.message || 'Bu e-posta adresine kayıtlı kullanıcı bulunamadı.');
+      setForgotError(err.message || 'Şifre sıfırlama işlemi gerçekleştirilemedi.');
     } finally {
       setForgotLoading(false);
     }
